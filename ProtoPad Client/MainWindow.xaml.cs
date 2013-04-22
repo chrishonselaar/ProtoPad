@@ -2,12 +2,13 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
-using ActiproSoftware.Text;
+using System.Windows.Navigation;
 using ActiproSoftware.Text.Languages.CSharp.Implementation;
 using ActiproSoftware.Text.Languages.DotNet;
 using ActiproSoftware.Text.Languages.DotNet.Ast.Implementation;
@@ -15,7 +16,6 @@ using ActiproSoftware.Text.Languages.DotNet.Reflection;
 using ActiproSoftware.Text.Parsing;
 using ActiproSoftware.Windows.Controls.SyntaxEditor.IntelliPrompt.Implementation;
 using Microsoft.CSharp;
-using Newtonsoft.Json;
 using ServiceDiscovery;
 using mshtml;
 
@@ -23,27 +23,29 @@ namespace ProtoPad_Client
 {    
     public partial class MainWindow
     {
-        private const string AndroidPort = "12345";
+        public const string AndroidPort = "12345";
+        public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
+        public const int multicastForwardedHostPort = 15353; // todo: auto-find available port
+        public const int httpForwardedHostPort = 18080; // todo: auto-find available port
 
         private HTMLDivElementClass _htmlHolder;
         private IHTMLWindow2 _htmlWindow;
         private string _currentWrapText;
+        private IProjectAssembly _projectAssembly;
+        private UdpDiscoveryClient _udpDiscoveryClient;
+        private readonly List<string> _referencedAssemblies = new List<string>();  
 
         private string WrapHeader
         {
-            get { return _currentWrapText.Split(new[] { "__STATEMENTSHERE__" }, StringSplitOptions.None)[0]; }
+            get { return _currentWrapText.Split(new[] { CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[0]; }
         }
         private string WrapFooter
         {
-            get { return _currentWrapText.Split(new[] { "__STATEMENTSHERE__" }, StringSplitOptions.None)[1]; }
+            get { return _currentWrapText.Split(new[] { CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[1]; }
         }
 
-        private readonly IProjectAssembly _projectAssembly;
-        public static RoutedCommand SendCodeCommand = new RoutedCommand();
-        private readonly UdpDiscoveryClient _udpDiscoveryClient;
-        private readonly List<string> _referencedAssemblies = new List<string>();
-        private DeviceItem _currentDevice;
         private EditorHelpers.CodeType _currentCodeType = EditorHelpers.CodeType.Statements;
+        private DeviceItem _currentDevice;
 
         public enum DeviceTypes {Android, iOS}
 
@@ -56,43 +58,17 @@ namespace ProtoPad_Client
 
         public MainWindow()
         {
-            InitializeComponent();
+            InitializeComponent();            
 
-            _currentDevice = new DeviceItem
-                {
-                    DeviceAddress = "http://192.168.1.104:8080/",
-                    DeviceName = "Yarvik",
-                    DeviceType = DeviceTypes.Android
-                };
-            // NOTE: Make sure that you've read through the add-on language's 'Getting Started' topic
-            //   since it tells you how to set up an ambient parse request dispatcher and an ambient
-            //   code repository within your application OnStartup code, and add related cleanup in your
-            //   application OnExit code.  These steps are essential to having the add-on perform well.
+            InitializeEditor();
+            SearchForRunningProtoPadServers();
+        }
 
-            // Initialize the project assembly (enables support for automated IntelliPrompt features)
-            _projectAssembly = new CSharpProjectAssembly("SampleBrowser");
-            var assemblyLoader = new BackgroundWorker();
-            assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
-            assemblyLoader.RunWorkerAsync();            
+        private async void SearchForRunningProtoPadServers()
+        {
+            //_currentDevice = new DeviceItem { DeviceAddress = "http://192.168.1.104:8080/", DeviceName = "Yarvik", DeviceType = DeviceTypes.Android };
 
-            // Load the .NET Languages Add-on C# language and register the project assembly on it
-            var language = new CSharpSyntaxLanguage();
-            language.RegisterProjectAssembly(_projectAssembly);
-
-            CodeEditor.Document.Language = language;            
-
-            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
-
-            CodeEditor.PreviewKeyDown += (sender, args) =>
-                {
-                    if (args.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
-                    SendCodeButton_Click(null,null);
-                    args.Handled = true;
-                };
-
-            
             _udpDiscoveryClient = new UdpDiscoveryClient(
-//                ready => Dispatcher.Invoke((Action) (() => SendCodeButton.IsEnabled = ready)),
                 ready => { },
                 (name, address) => Dispatcher.Invoke(() =>
                     {
@@ -101,40 +77,64 @@ namespace ProtoPad_Client
                             {
                                 DeviceAddress = address,
                                 DeviceName = name,
-                                DeviceType = name.StartsWith("ProtoPad Service on ANDROID Device ") ? DeviceTypes.Android : DeviceTypes.iOS
+                                DeviceType =
+                                    name.StartsWith("ProtoPad Service on ANDROID Device ")
+                                        ? DeviceTypes.Android
+                                        : DeviceTypes.iOS
                             };
                         if (!DevicesComboBox.Items.Cast<object>().Any(i => (i as DeviceItem).DeviceAddress == deviceItem.DeviceAddress))
                         {
-                            DevicesComboBox.Items.Add(deviceItem);    
+                            DevicesComboBox.Items.Add(deviceItem);
                         }
                         DevicesComboBox.IsEnabled = true;
-                        //ResultTextBox.Text += String.Format("Found '{0}' on {1}", name, address);                        
+                        Debug.WriteLine("Found '{0}' on {1}", name, address);
                     }));
-            ResultTextBox.Navigated += (sender, args) =>
-                {
-                    var htmlDocument = ResultTextBox.Document as HTMLDocument;
-                    _htmlHolder = htmlDocument.getElementById("wrapallthethings") as HTMLDivElementClass;
-                    _htmlWindow = htmlDocument.parentWindow;
-                    _udpDiscoveryClient.SendServerPing();
-                    var ticksPassed = 0;
-                    var dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
-                    dispatcherTimer.Tick += (s, a) =>
-                        {
-                            if (ticksPassed > 2)
-                            {
-                                dispatcherTimer.Stop();
-                                if (DevicesComboBox.Items.Count == 1)
-                                {
-                                    DevicesComboBox.SelectedIndex = 0;
-                                }
-                            }
-                            _udpDiscoveryClient.SendServerPing();
-                            ticksPassed++;
-                        };
-                    dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
-                    dispatcherTimer.Start();
-                };
+
             ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
+            await ResultTextBox.GetEventAsync<NavigationEventArgs>("Navigated");
+            var htmlDocument = ResultTextBox.Document as HTMLDocument;
+            _htmlHolder = htmlDocument.getElementById("wrapallthethings") as HTMLDivElementClass;
+            _htmlWindow = htmlDocument.parentWindow;
+
+            _udpDiscoveryClient.SendServerPing();
+            var ticksPassed = 0;
+            var dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
+            dispatcherTimer.Tick += (s, a) =>
+                {
+                    if (ticksPassed > 2)
+                    {
+                        dispatcherTimer.Stop();
+                        if (DevicesComboBox.Items.Count == 1) DevicesComboBox.SelectedIndex = 0;
+                    }
+                    _udpDiscoveryClient.SendServerPing();
+                    ticksPassed++;
+                };
+            dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
+            dispatcherTimer.Start();
+        }
+
+        private void InitializeEditor()
+        {
+            // Initialize the project assembly (enables support for automated IntelliPrompt features)
+            _projectAssembly = new CSharpProjectAssembly("ProtoPad Client");
+            var assemblyLoader = new BackgroundWorker();
+            assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
+            assemblyLoader.RunWorkerAsync();
+
+            // Load the .NET Languages Add-on C# language and register the project assembly on it
+            var language = new CSharpSyntaxLanguage();
+            language.RegisterProjectAssembly(_projectAssembly);
+
+            CodeEditor.Document.Language = language;
+
+            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
+
+            CodeEditor.PreviewKeyDown += (sender, args) =>
+                {
+                    if (args.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+                    SendCodeButton_Click(null, null);
+                    args.Handled = true;
+                };
         }
 
         private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
@@ -217,7 +217,7 @@ namespace ProtoPad_Client
         {
             var assemblyPath = CompileSource(wrapWithDefaultCode, specialNonEditorCode);
             var responseString = String.IsNullOrWhiteSpace(assemblyPath) ? null : SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath)).Trim();
-            return String.IsNullOrWhiteSpace(responseString) ? null : JsonConvert.DeserializeObject<ExecuteResponse>(responseString);
+            return String.IsNullOrWhiteSpace(responseString) ? null : UtilityMethods.JsonDecode<ExecuteResponse>(responseString);
         }
 
         private void VisitNodesAndSelectStatementOffsets(IAstNode node, ICollection<int> statementOffsets)
@@ -245,10 +245,6 @@ namespace ProtoPad_Client
         {
             var codeWithOffsets = specialNonEditorCode ?? GetSourceWithBreakPoints().Replace("void Main(", "public void Main(");
 
-            //var sourceCodeParts = originalSourceCode.Replace("void Main(", "public void Main(").Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            //var includeBreakPoints = wrapWithDefaultCode && (_currentCodeType == EditorHelpers.CodeType.Statements);
-            //var concatSource = String.Join(includeBreakPoints ? "\n___lastExecutedLineNumber++;\n" : "\n", sourceCodeParts);
-
             var sourceCode = wrapWithDefaultCode ? String.Format("{0}{1}{2}", WrapHeader.Replace("void Main(", "public void Main("), codeWithOffsets, WrapFooter) : codeWithOffsets;
             var cpd = new CSharpCodeProvider();
             var compilerParameters = new CompilerParameters();
@@ -270,8 +266,7 @@ namespace ProtoPad_Client
 
         private void ShowLineError(int codeLineNumber, string errorMessage)
         {
-            if (codeLineNumber < 0 || codeLineNumber > CodeEditor.ActiveView.CurrentSnapshot.Lines.Count)
-                codeLineNumber = 0;
+            if (codeLineNumber < 0 || codeLineNumber > CodeEditor.ActiveView.CurrentSnapshot.Lines.Count) codeLineNumber = 0;
             var editorLine = CodeEditor.ActiveView.CurrentSnapshot.Lines[codeLineNumber];
             CodeEditor.ActiveView.Selection.StartOffset = editorLine.StartOffset;
             CodeEditor.ActiveView.Selection.SelectToLineEnd();
@@ -361,13 +356,44 @@ namespace ProtoPad_Client
 
         private void AboutHelpButton_Click(object sender, RoutedEventArgs e)
         {
-            var aboutWindow = new AboutWindow();
-            aboutWindow.Show();
+            (new AboutWindow()).Show();
         }
 
         private void AddManualIPButton_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        /// <summary>
+        /// Tries to find and Telnet-connect to the (first) running Android Emulator (AVD)
+        /// And tries to set up port forwarding on it, so that the ProtoPad Http (command) and Udp (discovery) servers are accessible from your host machine.
+        /// </summary>
+        /// <returns>Whether the port forwarding setup was succesful (might fail if already set up or ports busy)</returns>
+        private bool SetupPortForwardingOnAndroidEmulator()
+        {
+            var udpCommandResponse = "";
+            var tcpCommandResponse = "";
+            try
+            {
+                var tc = new TelnetConnection("localhost", 5554);
+                var connectResponse = tc.Read();
+                if (!connectResponse.Contains("Android Console")) return false;
+
+                tc.WriteLine(String.Format("redir add udp:{0}:{1}", multicastForwardedHostPort, UdpDiscoveryServer.UdpServerPort));
+                udpCommandResponse = tc.Read();
+                tc.WriteLine(String.Format("redir add tcp:{0}:{1}", httpForwardedHostPort, 8080));
+                tcpCommandResponse = tc.Read();
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("Unexpected error during Android Emulator Telnet session: {0}", e.Message);
+                return false;
+            }
+
+            // response in case already set up:
+            // "KO: host port already active, use 'redir del' to remove first"
+
+            return udpCommandResponse.Contains("OK") && tcpCommandResponse.Contains("OK");
         }
     }
 }

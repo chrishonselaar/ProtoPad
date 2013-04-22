@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.Serialization;
 using System.Xml.Linq;
 
 namespace ProtoPad_Client
 {
+    [DataContract]
     public class DumpValue
     {
         public enum DumpTypes { PrimitiveEnumerable, ComplexEnumerable, Group, Primitive, Complex, BeyondMaxLevel, Image }
@@ -21,6 +21,7 @@ namespace ProtoPad_Client
         public List<DumpValue> ComplexEnumerable { get; set; }
     }
 
+    [DataContract]
     public class ExecuteResponse
     {
         public string ErrorMessage { get; set; }
@@ -31,7 +32,6 @@ namespace ProtoPad_Client
     {
         public static XNode Dump(DumpValue dumpValue, int level)
         {
-            //
             if (dumpValue == null) return new XText("");
             switch (dumpValue.DumpType)
             {
@@ -50,7 +50,6 @@ namespace ProtoPad_Client
                             new XElement("tr", new XElement("th", v.Key), new XElement("td", Dump(v.Value, level+1))))));
                 case DumpValue.DumpTypes.ComplexEnumerable:
                     var allKeys = dumpValue.ComplexEnumerable.Where(v=>v.ComplexValue != null).SelectMany(v => v.ComplexValue.Select(c => c.Key)).Distinct().ToList();
-                    //var firstValue = dumpValue.ComplexEnumerable.First();
                     return new XElement("table", new XAttribute("data-level", level), allKeys.Count > 10 ? new XAttribute("class", "collapsed") : null,
                         new XElement("thead",
                             new XElement("tr", new XElement("td", new XElement("div", new XAttribute("class", "leftarrow"), " "), new XElement("span", String.Format("{0} ({1} item{2})", dumpValue.TypeName,

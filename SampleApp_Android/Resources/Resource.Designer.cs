@@ -26,6 +26,8 @@ namespace SampleApp_Android
 		
 		public static void UpdateIdValues()
 		{
+			ProtoPadServerLibrary_Android.Resource.String.ApplicationName = SampleApp_Android.Resource.String.ApplicationName;
+			ProtoPadServerLibrary_Android.Resource.String.Hello = SampleApp_Android.Resource.String.Hello;
 		}
 		
 		public partial class Attribute

@@ -8,6 +8,8 @@ namespace ServiceDiscovery
 {
     public class UdpDiscoveryServer: IDisposable
     {
+        public const int UdpServerPort = 5353; // TODO: arbitrary value for now - update to use automatic free port finder?
+
         private readonly string _respondWithServerName;
         private readonly string _respondWithEndpointAddress;
         private readonly IPAddress _broadCastAddress;
@@ -24,7 +26,7 @@ namespace ServiceDiscovery
 
         private void ListenUdp()
         {
-            var broadcastAddress = new IPEndPoint(_broadCastAddress, 5353);
+            var broadcastAddress = new IPEndPoint(_broadCastAddress, UdpServerPort);
             _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _udpClient.ExclusiveAddressUse = false;
             _udpClient.Client.Bind(broadcastAddress);

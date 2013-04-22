@@ -9,6 +9,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using Android.App;
+using Android.Net;
 using Android.Net.Wifi;
 using Android.Views;
 using ServiceDiscovery;
@@ -29,6 +30,7 @@ namespace ProtoPadServerLibrary_Android
 
         /// <summary>
         /// Starts listening for ProtoPad clients, and allows them to connect and access the View you pass in
+        /// Make sure to enable ACCESS_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE permissions in your app manifest, for autodiscovery to work - as well as any other permissions you yourself may need of course!
         /// WARNING: do not dispose until you are done listening for ProtoPad client events. Usually you will want to dispose only upon exiting the app.
         /// </summary>
         /// <param name="window">Supply your main application view here. This will be made scriptable from the ProtoPad Client.</param>
@@ -53,8 +55,17 @@ namespace ProtoPadServerLibrary_Android
             IPAddress broadCastAddress;
             using (var wifi = _contextActivity.GetSystemService(Android.Content.Context.WifiService) as WifiManager)
             {
-                _mcLock = wifi.CreateMulticastLock("ProtoPadLock");
-                _mcLock.Acquire();
+                try
+                {
+                    _mcLock = wifi.CreateMulticastLock("ProtoPadLock");
+                    _mcLock.Acquire();
+
+                }
+                catch (Java.Lang.SecurityException e)
+                {
+                    Debug.WriteLine("Could not optain Multicast lock: {0}. Did you enable CHANGE_WIFI_MULTICAST_STATE permission in your app manifest?", e.Message);
+                }
+
                 broadCastAddress = GetBroadcastAddress(wifi);                
             }
 
@@ -112,7 +123,16 @@ namespace ProtoPadServerLibrary_Android
 
         public IPAddress GetBroadcastAddress(WifiManager wifi)
         {
-            var dhcp = wifi.DhcpInfo;
+            DhcpInfo dhcp;
+            try
+            {
+                dhcp = wifi.DhcpInfo;
+            }
+            catch (Java.Lang.SecurityException e)
+            {
+                Debug.WriteLine("Could not optain Wifi information: {0}. Did you enable ACCESS_WIFI_STATE permission in your app manifest?", e.Message);
+                return null;
+            }
             var broadcast = (dhcp.IpAddress & dhcp.Netmask) | ~dhcp.Netmask;
             var quads = new byte[4];
             for (var k = 0; k < 4; k++) quads[k] = (byte)((broadcast >> k * 8) & 0xFF);

@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ProtoPad_Client
 {
@@ -186,5 +190,38 @@ public static class DumpHelpers
         __MTDynamicCode.___dumps.Add(Tuple.Create<string, object, int, bool>(description, dumpValue, DefaultLevel, toDataGrid));
     }
 }";
+    }
+}
+
+public static class UtilityMethods
+{
+    public static Task<T> GetEventAsync<T>(this object eventSource, string eventName) where T : EventArgs
+    {
+        var tcs = new TaskCompletionSource<T>();
+
+        var type = eventSource.GetType();
+        var ev = type.GetEvent(eventName);
+
+        EventHandler handler = null;
+        handler = delegate(object sender, EventArgs e)
+            {
+                ev.RemoveEventHandler(eventSource, handler);
+                tcs.SetResult((T)e);
+            };
+
+        ev.AddEventHandler(eventSource, handler);
+        return tcs.Task;
+    }
+
+    public static T JsonDecode<T>(string jsonValue)
+    {
+        var serializer = new DataContractJsonSerializer(typeof(T));
+        T result;
+        using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonValue)))
+        {
+            result = (T)serializer.ReadObject(stream);
+            stream.Close();
+        }
+        return result;
     }
 }
