@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:syntaxeditor="http://schemas.actiprosoftware.com/winfx/xaml/syntaxeditor"
         xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Class="ProtoPad_Client.MainWindow"
-        Title="ProtoPad - NOT connected!" Height="910" Width="888">
+        Title="ProtoPad - NOT connected!" Height="910" Width="1122.798">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -21,11 +21,14 @@
                 <Button x:Name="ConnectToAppButton" Content="Discover running apps" Height="31" VerticalAlignment="Top" Width="134" Click="ConnectToAppButton_Click"/>
                 <ComboBox SelectedValuePath="DeviceAddress" DisplayMemberPath="DeviceName" IsEnabled="False" x:Name="DevicesComboBox" VerticalAlignment="Top" Width="260" Height="31" SelectionChanged="DevicesComboBox_SelectionChanged">
                 </ComboBox>
-                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="Statements" Width="100" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged">                    
+                <Button x:Name="AddManualIPButton" Content="Add IP" Height="31" VerticalAlignment="Bottom" Width="83" Click="AddManualIPButton_Click"/>
+                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="Statements" Width="100" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged" Margin="0">                    
                     <sys:String>Expression</sys:String>
                     <sys:String>Statements</sys:String>
                     <sys:String>Program</sys:String>
-                </ComboBox>                
+                </ComboBox>
+                <Button x:Name="AboutHelpButton" Content="About/help" Height="31" VerticalAlignment="Top" Width="83" Click="AboutHelpButton_Click"/>
+                
             </ToolBar>
             <syntaxeditor:SyntaxEditor DockPanel.Dock="Bottom" x:Name="CodeEditor" IsIndicatorMarginVisible="True">
                 <syntaxeditor:EditorDocument xml:space="preserve"><![CDATA[//Please connect to a ProtoPad-enabled app!]]></syntaxeditor:EditorDocument>

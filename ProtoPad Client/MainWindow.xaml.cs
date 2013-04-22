@@ -358,5 +358,16 @@ namespace ProtoPad_Client
                                                        : ""); //todo: Android
             SendCode(_currentDevice.DeviceAddress, false, clearCode);            
         }
+
+        private void AboutHelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            var aboutWindow = new AboutWindow();
+            aboutWindow.Show();
+        }
+
+        private void AddManualIPButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }

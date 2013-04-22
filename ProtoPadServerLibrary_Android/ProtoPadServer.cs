@@ -17,7 +17,7 @@ namespace ProtoPadServerLibrary_Android
 {
     public sealed class ProtoPadServer: IDisposable
     {
-        private readonly View _window;
+        //private readonly View _window;
         private readonly Activity _contextActivity;
         private readonly SimpleHttpServer _httpServer;
         private readonly UdpDiscoveryServer _udpServer;
@@ -32,16 +32,15 @@ namespace ProtoPadServerLibrary_Android
         /// WARNING: do not dispose until you are done listening for ProtoPad client events. Usually you will want to dispose only upon exiting the app.
         /// </summary>
         /// <param name="window">Supply your main application view here. This will be made scriptable from the ProtoPad Client.</param>
-        public static ProtoPadServer Create(View window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
+        public static ProtoPadServer Create(Activity activity, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
-            return new ProtoPadServer(window, overrideListeningPort, overrideBroadcastedAppName);
+            return new ProtoPadServer(activity, overrideListeningPort, overrideBroadcastedAppName);
         }
 
-        private ProtoPadServer(View window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
+        private ProtoPadServer(Activity activity, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
-            _window = window;
-            _contextActivity = window.Context as Activity;
-
+            _contextActivity = activity;
+            
             _httpServer = new SimpleHttpServer(responseBytes =>
             {
                 var response = "{}";
@@ -81,7 +80,7 @@ namespace ProtoPadServerLibrary_Android
         {
             try
             {
-                var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _window);
+                var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _contextActivity);
                 if (executeResponse.DumpValues != null)
                 {
                     executeResponse.Results = executeResponse.DumpValues.Select(v => new Tuple<string, DumpValue>(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.MaxEnumerableItemCount))).ToList();
@@ -128,7 +127,7 @@ namespace ProtoPadServerLibrary_Android
             public int MaxEnumerableItemCount;
         }
 
-        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, View window)
+        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, Activity activity)
         {
             MethodInfo printMethod;
 
@@ -150,7 +149,7 @@ namespace ProtoPadServerLibrary_Android
             var response = new ExecuteResponse();
             try
             {
-                printMethod.Invoke(loadedInstance, new object[] { window });
+                printMethod.Invoke(loadedInstance, new object[] { activity });
                 response.DumpValues = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<Tuple<string, object, int, bool>>;
                 response.MaxEnumerableItemCount = Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance));
             }
