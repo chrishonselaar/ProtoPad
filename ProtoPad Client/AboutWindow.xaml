@@ -1,0 +1,9 @@
+﻿<Window x:Class="ProtoPad_Client.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ABoutWindow" Height="300" Width="300">
+    <Grid>
+        <TextBlock HorizontalAlignment="Left" Margin="46,41,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="171" Width="184"><Run FontSize="16" FontFamily="Calibri" Language="nl-nl" Text="Powered by the Actipro SyntaxEditor code editor control."/><LineBreak/><Hyperlink NavigateUri="http://www.actiprosoftware.com"><Span Foreground="Blue" FontSize="16" FontFamily="Calibri" Language="nl-nl" TextDecorations="Underline"><Run Text="http://www.actiprosoftware.com"/></Span></Hyperlink></TextBlock>
+
+    </Grid>
+</Window>
