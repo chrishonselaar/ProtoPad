@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Navigation;
 
 namespace ProtoPad_Client
 {
@@ -208,6 +209,24 @@ public static class UtilityMethods
                 ev.RemoveEventHandler(eventSource, handler);
                 tcs.SetResult((T)e);
             };
+
+        ev.AddEventHandler(eventSource, handler);
+        return tcs.Task;
+    }
+
+    public static Task<NavigationEventArgs> GetNavigatedEventAsync(this object eventSource, string eventName)
+    {
+        var tcs = new TaskCompletionSource<NavigationEventArgs>();
+
+        var type = eventSource.GetType();
+        var ev = type.GetEvent(eventName);
+
+        NavigatedEventHandler handler = null;
+        handler = delegate(object sender, NavigationEventArgs e)
+        {
+            ev.RemoveEventHandler(eventSource, handler);
+            tcs.SetResult(e);
+        };
 
         ev.AddEventHandler(eventSource, handler);
         return tcs.Task;

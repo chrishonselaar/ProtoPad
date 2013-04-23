@@ -29,7 +29,7 @@ namespace ServiceDiscovery
             {
                 var state = (UdpState)(ar.AsyncState);
                 var client = state.client;
-                var endPoint = state.endPoint;
+                var endPoint = state.endPoint;                
                 var receiveBytes = client.EndReceive(ar, ref endPoint);
                 var str = Encoding.UTF8.GetString(receiveBytes);
                 var data = str.Split('|');
@@ -41,7 +41,7 @@ namespace ServiceDiscovery
             }
             catch (Exception e)
             {
-                Debug.WriteLine("Error processing UDP ping callback: {0}", e.Message);
+                Debug.WriteLine(String.Format("Error processing UDP ping callback: {0}", e.Message));
             }
         }
 

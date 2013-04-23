@@ -1,0 +1,32 @@
+﻿<Window x:Class="ProtoPad_Client.PromptIPAddressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:src="clr-namespace:ProtoPad_Client"
+        Title="PromptIPAddressWindow" Height="128" Width="220">
+    <Grid>
+        <Grid.Resources>
+
+            <src:CheckFilledConverter x:Key="TestConverter" />
+
+        </Grid.Resources>
+        
+        <Button Content="Cancel" HorizontalAlignment="Left" Margin="10,66,0,0" VerticalAlignment="Top" Width="75" IsCancel="True"/>
+        <Button Content="OK" HorizontalAlignment="Left" Margin="127,66,0,0" VerticalAlignment="Top" Width="75" IsDefault="True">
+            <Button.IsEnabled>
+
+                <MultiBinding Converter="{StaticResource TestConverter}">
+
+                    <Binding ElementName="IPAddressTextBox" Path="Text" />
+
+                    <Binding ElementName="PortTextBox" Path="Text" />
+
+                </MultiBinding>
+
+            </Button.IsEnabled>
+        </Button>
+        <TextBox x:Name="IPAddressTextBox" HorizontalAlignment="Left" Height="23" Margin="87,10,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="115"/>
+        <TextBox x:Name="PortTextBox" HorizontalAlignment="Left" Height="23" Margin="87,38,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="115"/>
+        <Label Content="IP address:" HorizontalAlignment="Left" Margin="10,6,0,0" VerticalAlignment="Top"/>
+        <Label Content="Port:" HorizontalAlignment="Left" Margin="10,34,0,0" VerticalAlignment="Top"/>
+
+    </Grid>
+</Window>

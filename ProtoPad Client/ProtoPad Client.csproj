@@ -89,6 +89,9 @@
     <Compile Include="AboutWindow.xaml.cs">
       <DependentUpon>AboutWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PromptIPAddressWindow.xaml.cs">
+      <DependentUpon>PromptIPAddressWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TelnetInterface.cs" />
     <Page Include="AboutWindow.xaml">
       <SubType>Designer</SubType>
@@ -110,6 +113,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="PromptIPAddressWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">

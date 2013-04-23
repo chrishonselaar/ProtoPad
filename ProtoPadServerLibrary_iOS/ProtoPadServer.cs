@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
@@ -11,11 +12,15 @@ using ServiceDiscovery;
 
 namespace ProtoPadServerLibrary_iOS
 {
-    public class ProtoPadServer
+    public class ProtoPadServer : IDisposable
     {
+        public IPAddress LocalIPAddress { get; private set; }
+        public int ListeningPort { get; private set; }
+        public string BroadcastedAppName { get; private set; }
+
         private readonly UIWindow _window;
-        private SimpleHttpServer _httpServer;
-        private UdpDiscoveryServer _udpServer;
+        private readonly SimpleHttpServer _httpServer;
+        private readonly UdpDiscoveryServer _udpServer;
 
         /// <summary>
         /// Starts listening for ProtoPad clients, and allows them to connect and access the UIWindow you pass in
@@ -24,14 +29,18 @@ namespace ProtoPadServerLibrary_iOS
         /// <string>YES</string>
         /// </summary>
         /// <param name="window">Supply your main application window here. This will be made scriptable from the ProtoPad Client.</param>
-        public static ProtoPadServer Create(UIWindow window)
+        public static ProtoPadServer Create(UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
-            return new ProtoPadServer(window);
+            return new ProtoPadServer(window, overrideListeningPort, overrideBroadcastedAppName);
         }
 
-        private ProtoPadServer(UIWindow window)
+        private ProtoPadServer(UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
             _window = window;
+
+            BroadcastedAppName = overrideBroadcastedAppName ?? String.Format("ProtoPad Service on iOS Device {0}", UIDevice.CurrentDevice.Name);
+            ListeningPort = overrideListeningPort ?? 8080;
+            LocalIPAddress = Helpers.GetCurrentIPAddress();
 
             _httpServer = new SimpleHttpServer(responseBytes =>
             {
@@ -40,11 +49,9 @@ namespace ProtoPadServerLibrary_iOS
                 _window.InvokeOnMainThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));
                 remoteCommandDoneEvent.WaitOne();
                 return response;
-            });
+            }, ListeningPort, "iOS");
 
-            _udpServer = new UdpDiscoveryServer(
-                String.Format("ProtoPad Service on Device {0}", UIDevice.CurrentDevice.Name),
-                String.Format("http://{0}:8080/", Helpers.GetCurrentIPAddress()));            
+            _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), Helpers.GetCurrentIPAddress());          
         }
 
         public static string JsonEncode(object value)
@@ -122,6 +129,12 @@ namespace ProtoPadServerLibrary_iOS
             }
 
             return response;
+        }
+
+        public void Dispose()
+        {
+            if (_httpServer != null) _httpServer.Dispose();
+            if (_udpServer != null) _udpServer.Dispose();
         }
     }
 }

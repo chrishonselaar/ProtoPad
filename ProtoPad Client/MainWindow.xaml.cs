@@ -23,7 +23,6 @@ namespace ProtoPad_Client
 {    
     public partial class MainWindow
     {
-        public const string AndroidPort = "12345";
         public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
         public const int multicastForwardedHostPort = 15353; // todo: auto-find available port
         public const int httpForwardedHostPort = 18080; // todo: auto-find available port
@@ -72,7 +71,6 @@ namespace ProtoPad_Client
                 ready => { },
                 (name, address) => Dispatcher.Invoke(() =>
                     {
-                        if (address.Contains("?")) address = address.Replace("?", AndroidPort);
                         var deviceItem = new DeviceItem
                             {
                                 DeviceAddress = address,
@@ -91,7 +89,7 @@ namespace ProtoPad_Client
                     }));
 
             ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
-            await ResultTextBox.GetEventAsync<NavigationEventArgs>("Navigated");
+            await ResultTextBox.GetNavigatedEventAsync("Navigated");
             var htmlDocument = ResultTextBox.Document as HTMLDocument;
             _htmlHolder = htmlDocument.getElementById("wrapallthethings") as HTMLDivElementClass;
             _htmlWindow = htmlDocument.parentWindow;
@@ -295,11 +293,10 @@ namespace ProtoPad_Client
             SendCodeButton.IsEnabled = true;
             LoadAssemblyButton.IsEnabled = true;
 
-            
+            if (_currentDevice.DeviceType == DeviceTypes.Android) return;
+
             var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Expression, _currentDevice.DeviceType);
-            var getFolderCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS
-                                                       ? "Environment.GetFolderPath(Environment.SpecialFolder.Personal)"
-                                                       : ""); //todo: Android
+            var getFolderCode = wrapText.Replace("__STATEMENTSHERE__", "Environment.GetFolderPath(Environment.SpecialFolder.Personal)");
             var result = SendCode(_currentDevice.DeviceAddress, false, getFolderCode);
             if (result == null) return;
             var folder = result.Results.FirstOrDefault();
@@ -361,7 +358,51 @@ namespace ProtoPad_Client
 
         private void AddManualIPButton_Click(object sender, RoutedEventArgs e)
         {
+            var promptWindow = new PromptIPAddressWindow();
+            if (!promptWindow.ShowDialog().Value) return;
+            var address = String.Format("{0}:{1}", promptWindow.IPAddress, promptWindow.Port);
+            var deviceType = QuickConnect(address);
+            if (!deviceType.HasValue)
+            {
+                MessageBox.Show(String.Format("Could not connect to {0}", address));
+                return;
+            }
+            var deviceItem = new DeviceItem
+            {
+                DeviceAddress = address,
+                DeviceName = String.Format("{0} app on {1}", deviceType, address),
+                DeviceType = deviceType.Value
+            };
+            if (!DevicesComboBox.Items.Cast<object>().Any(i => (i as DeviceItem).DeviceAddress == deviceItem.DeviceAddress))
+            {
+                DevicesComboBox.Items.Add(deviceItem);
+            }
+            DevicesComboBox.IsEnabled = true;
+        }
 
+        private void ConfigureAndroidEmulatorButton_Click(object sender, RoutedEventArgs e)
+        {
+            var emulatorPortCandidates = FindEmulatorPortCandidates();
+            if (!emulatorPortCandidates.Any())
+            {
+                MessageBox.Show("No emulators found - are you sure the emulator is online?");
+                return;
+            }
+            var results = emulatorPortCandidates.ToDictionary(c => c, SetupPortForwardingOnAndroidEmulator);
+            var successResults = results.Where(r => r.Value.HasValue && r.Value.Value).Select(r => r.Key);
+            if (successResults.Any())
+            {
+                MessageBox.Show(String.Format("Emulator(s) found at port(s) {0}, and configured successfully! Hit 'Find servers' to auto-discover your running app on this/these emulator(s).", String.Join(", ", successResults)));
+                return;
+            }
+            var halfResults = results.Where(r => r.Value.HasValue && !r.Value.Value).Select(r => r.Key);
+            if (halfResults.Any())
+            {
+                MessageBox.Show(String.Format("Emulator(s) found at port(s) {0}, but they may have already been configured, or were not able to be configured successfully. Please retry auto-discovery.", String.Join(", ", halfResults)));
+                return;
+            }
+            var emptyResults = results.Where(r => !r.Value.HasValue).Select(r => r.Key);
+            MessageBox.Show(String.Format("Emulator(s) found at port(s) {0}, but they could not be telnet-connected to. Please retry auto-discovery.", String.Join(", ", emptyResults)));
         }
 
         /// <summary>
@@ -369,31 +410,48 @@ namespace ProtoPad_Client
         /// And tries to set up port forwarding on it, so that the ProtoPad Http (command) and Udp (discovery) servers are accessible from your host machine.
         /// </summary>
         /// <returns>Whether the port forwarding setup was succesful (might fail if already set up or ports busy)</returns>
-        private bool SetupPortForwardingOnAndroidEmulator()
+        private static bool? SetupPortForwardingOnAndroidEmulator(int port = 5554)
         {
             var udpCommandResponse = "";
             var tcpCommandResponse = "";
             try
             {
-                var tc = new TelnetConnection("localhost", 5554);
-                var connectResponse = tc.Read();
-                if (!connectResponse.Contains("Android Console")) return false;
+                using (var tc = new TelnetConnection("localhost", port))
+                {
+                    var connectResponse = tc.Read();
+                    if (!connectResponse.Contains("Android Console")) return null;
 
-                tc.WriteLine(String.Format("redir add udp:{0}:{1}", multicastForwardedHostPort, UdpDiscoveryServer.UdpServerPort));
-                udpCommandResponse = tc.Read();
-                tc.WriteLine(String.Format("redir add tcp:{0}:{1}", httpForwardedHostPort, 8080));
-                tcpCommandResponse = tc.Read();
+                    tc.WriteLine(String.Format("redir add udp:{0}:{1}", multicastForwardedHostPort, UdpDiscoveryServer.UdpServerPort));
+                    udpCommandResponse = tc.Read();
+                    tc.WriteLine(String.Format("redir add tcp:{0}:{1}", httpForwardedHostPort, 8080));
+                    tcpCommandResponse = tc.Read();
+                }
             }
             catch (Exception e)
             {
                 Debug.WriteLine("Unexpected error during Android Emulator Telnet session: {0}", e.Message);
-                return false;
+                return null;
             }
 
             // response in case already set up:
             // "KO: host port already active, use 'redir del' to remove first"
 
             return udpCommandResponse.Contains("OK") && tcpCommandResponse.Contains("OK");
+        }
+
+        private static DeviceTypes? QuickConnect(string endpoint)
+        {
+            var appIdentifier = SimpleHttpServer.SendWhoAreYou(endpoint);
+            if (String.IsNullOrWhiteSpace(appIdentifier)) return null;
+            if (appIdentifier.Contains("Android")) return DeviceTypes.Android;
+            if (appIdentifier.Contains("iOS")) return DeviceTypes.iOS;
+            return null;
+        }
+
+        private static IEnumerable<int> FindEmulatorPortCandidates()
+        {
+            var tcpRows = ManagedIpHelper.GetExtendedTcpTable(true);
+            return (from tcpRow in tcpRows let process = Process.GetProcessById(tcpRow.ProcessId) where process != null where process.ProcessName.Contains("emulator-arm") select tcpRow.LocalEndPoint.Port).Distinct().ToList();
         }
     }
 }

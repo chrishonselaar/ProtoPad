@@ -18,15 +18,14 @@ namespace ProtoPadServerLibrary_Android
 {
     public sealed class ProtoPadServer: IDisposable
     {
-        //private readonly View _window;
+        public IPAddress LocalIPAddress { get; private set; }
+        public int ListeningPort { get; private set; }
+        public string BroadcastedAppName { get; private set; }
+
         private readonly Activity _contextActivity;
         private readonly SimpleHttpServer _httpServer;
         private readonly UdpDiscoveryServer _udpServer;
         private readonly WifiManager.MulticastLock _mcLock;
-
-        public IPAddress LocalIPAddress { get; private set; }
-        public int ListeningPort { get; private set; }
-        public string BroadcastedAppName { get; private set; }
 
         /// <summary>
         /// Starts listening for ProtoPad clients, and allows them to connect and access the View you pass in
@@ -42,7 +41,11 @@ namespace ProtoPadServerLibrary_Android
         private ProtoPadServer(Activity activity, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
             _contextActivity = activity;
-            
+
+            BroadcastedAppName = overrideBroadcastedAppName ?? String.Format("ProtoPad Service on ANDROID Device {0}", Android.OS.Build.Model);
+            ListeningPort = overrideListeningPort ?? 8080;
+            LocalIPAddress = Helpers.GetCurrentIPAddress();
+
             _httpServer = new SimpleHttpServer(responseBytes =>
             {
                 var response = "{}";
@@ -50,7 +53,7 @@ namespace ProtoPadServerLibrary_Android
                 _contextActivity.RunOnUiThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));                
                 remoteCommandDoneEvent.WaitOne();
                 return response;
-            });
+            }, ListeningPort, "Android");
 
             IPAddress broadCastAddress;
             using (var wifi = _contextActivity.GetSystemService(Android.Content.Context.WifiService) as WifiManager)
@@ -69,10 +72,6 @@ namespace ProtoPadServerLibrary_Android
                 broadCastAddress = GetBroadcastAddress(wifi);                
             }
 
-            BroadcastedAppName = overrideBroadcastedAppName ?? String.Format("ProtoPad Service on ANDROID Device {0}", Android.OS.Build.Model);
-            ListeningPort = overrideListeningPort ?? 8080;
-            LocalIPAddress = Helpers.GetCurrentIPAddress();
-            
             _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), broadCastAddress);          
         }
 

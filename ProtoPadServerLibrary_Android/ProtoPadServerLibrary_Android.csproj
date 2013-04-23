@@ -43,6 +43,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\ServiceDiscovery\Helpers.cs">
+      <Link>Helpers.cs</Link>
+    </Compile>
+    <Compile Include="..\ServiceDiscovery\SimpleHttpServer.cs">
+      <Link>SimpleHttpServer.cs</Link>
+    </Compile>
+    <Compile Include="..\ServiceDiscovery\UdpDiscoveryServer.cs">
+      <Link>UdpDiscoveryServer.cs</Link>
+    </Compile>
     <Compile Include="ObjectDumper.cs" />
     <Compile Include="ProtoPadServer.cs" />
     <Compile Include="Resources\Resource.Designer.cs" />
@@ -53,12 +62,6 @@
   </ItemGroup>
   <ItemGroup>
     <AndroidResource Include="Resources\Values\Strings.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ServiceDiscovery\ServiceDiscovery.csproj">
-      <Project>{29a572dd-16c2-4ba1-8f9d-9ebc9bf31ce7}</Project>
-      <Name>ServiceDiscovery</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

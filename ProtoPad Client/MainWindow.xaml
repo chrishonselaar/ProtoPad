@@ -14,21 +14,24 @@
 
         <DockPanel Grid.Row="0" Margin="0,0,0,5">
             <ToolBar DockPanel.Dock="Top" VerticalAlignment="Top" Height="36" HorizontalAlignment="Stretch">
-                
-                <Button x:Name="SendCodeButton" Content="Send code" Height="31" IsEnabled="False" VerticalAlignment="Top" Width="75" Click="SendCodeButton_Click"/>
-                <Button x:Name="LoadAssemblyButton" Content="Send assembly" Height="31" VerticalAlignment="Top" IsEnabled="False" Width="100" Click="LoadAssemblyButton_Click"/>
-                <Button x:Name="ClearSimulatorWindowButton" Content="Clear simulator window" Height="31" VerticalAlignment="Top" Width="134" Click="ClearSimulatorWindowButton_Click"/>
-                <Button x:Name="ConnectToAppButton" Content="Discover running apps" Height="31" VerticalAlignment="Top" Width="134" Click="ConnectToAppButton_Click"/>
-                <ComboBox SelectedValuePath="DeviceAddress" DisplayMemberPath="DeviceName" IsEnabled="False" x:Name="DevicesComboBox" VerticalAlignment="Top" Width="260" Height="31" SelectionChanged="DevicesComboBox_SelectionChanged">
-                </ComboBox>
-                <Button x:Name="AddManualIPButton" Content="Add IP" Height="31" VerticalAlignment="Bottom" Width="83" Click="AddManualIPButton_Click"/>
-                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="Statements" Width="100" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged" Margin="0">                    
+
+                <Button x:Name="SendCodeButton" Content="Send code" Height="31" IsEnabled="False" VerticalAlignment="Top" Width="75" Click="SendCodeButton_Click" ToolTip="Send code in editor window to connected app (CTRL+Enter)"/>
+                <Button x:Name="LoadAssemblyButton" Content="Send assembly" Height="31" VerticalAlignment="Top" IsEnabled="False" Width="100" Click="LoadAssemblyButton_Click" ToolTip="Select and send a  (compatible) .Net assembly to the running app. You will be able to reference and use that assembly from your code."/>
+                <Button x:Name="ClearSimulatorWindowButton" Content="Clear app window" Height="31" VerticalAlignment="Top" Width="121" Click="ClearSimulatorWindowButton_Click" ToolTip="Quickly remove all components from your app's main view"/>
+                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="Statements" Width="100" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged" Margin="0" ToolTip="Select what mode to code in: use 'Expression' for quick oneline commands and inspections (no need to use Dump()), use 'Statements' for multi-line code, use 'Program' in order to be able to use functions and classes.">
                     <sys:String>Expression</sys:String>
                     <sys:String>Statements</sys:String>
                     <sys:String>Program</sys:String>
                 </ComboBox>
-                <Button x:Name="AboutHelpButton" Content="About/help" Height="31" VerticalAlignment="Top" Width="83" Click="AboutHelpButton_Click"/>
+                <Button x:Name="ConnectToAppButton" Content="Find servers" Height="31" VerticalAlignment="Top" Width="89" Click="ConnectToAppButton_Click" ToolTip="Autodiscover (through mDNS) any running ProtoPad-enabled apps, and show them in the adjacent dropdown so you can select and connect to one."/>
+                <ComboBox SelectedValuePath="DeviceAddress" DisplayMemberPath="DeviceName" IsEnabled="False" x:Name="DevicesComboBox" VerticalAlignment="Top" Width="187" Height="31" SelectionChanged="DevicesComboBox_SelectionChanged" Margin="0" ToolTip="Shows the list of auto-discovered ProtoPad-enabled apps on your local machine or network. If no apps are shown, try using the 'Find servers' button or alternatively use 'Add IP' to connect to an app manually.">
+                </ComboBox>
+                <Button x:Name="AddManualIPButton" Content="Add IP" Height="31" VerticalAlignment="Bottom" Width="83" Click="AddManualIPButton_Click" ToolTip="If auto-discovery did not locate your app, use this button to add your app's IP address and port manually. You can find this information on the similarly named properties of the ProtoPadServer object that you created within your app."/>
+                <Button x:Name="ConfigureAndroidEmulatorButton" Content="New Android emu" Height="31" VerticalAlignment="Bottom" Width="109" ToolTip="Find and configure a new Android emulator. If you are using an Android emulator (AVD) with ProtoPad for the first time, it will probably not be set up to share its ports with your local machine. Use this button to automatically locate your running emulator, connect to it through Telnet, and set up port forwarding. All this should be done automatically. Just make sure to have only one emulator running." Click="ConfigureAndroidEmulatorButton_Click"/>
+
+                <Button x:Name="AboutHelpButton" Content="About/help" Height="31" VerticalAlignment="Top" Width="83" Click="AboutHelpButton_Click" ToolTip="Instructions and information about the app author and leveraged components."/>
                 
+
             </ToolBar>
             <syntaxeditor:SyntaxEditor DockPanel.Dock="Bottom" x:Name="CodeEditor" IsIndicatorMarginVisible="True">
                 <syntaxeditor:EditorDocument xml:space="preserve"><![CDATA[//Please connect to a ProtoPad-enabled app!]]></syntaxeditor:EditorDocument>
@@ -37,11 +40,11 @@
 
         <GridSplitter ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"/>
         <DockPanel Grid.Row="1">
-            <WebBrowser x:Name="ResultTextBox" />            
+            <WebBrowser x:Name="ResultTextBox" />
         </DockPanel>
         <StatusBar Height="30" Grid.Row="2"  VerticalAlignment="Top">
             <Label x:Name="StatusLabel"></Label>
-            
+
         </StatusBar>
-    </Grid>    
+    </Grid>
 </Window>

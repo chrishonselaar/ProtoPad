@@ -192,7 +192,7 @@ namespace ProtoPad_Client
         SGA = 3
     }
 
-    class TelnetConnection
+    public class TelnetConnection: IDisposable
     {
         readonly TcpClient tcpSocket;
 
@@ -291,6 +291,14 @@ namespace ProtoPad_Client
                         sb.Append( (char)input );
                         break;
                 }
+            }
+        }
+
+        public void Dispose()
+        {
+            if (tcpSocket != null)
+            {
+                tcpSocket.Close();
             }
         }
     }

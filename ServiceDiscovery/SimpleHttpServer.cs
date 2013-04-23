@@ -11,6 +11,7 @@ namespace ServiceDiscovery
     public sealed class SimpleHttpServer: IDisposable
     {
         private readonly HttpListener _listener;
+        private readonly string _appIdentifier;
         private const int ChunkSize = 1024;
 
         public delegate string ResponseBytesWithResultHandler(byte[] responseBytes);
@@ -19,16 +20,18 @@ namespace ServiceDiscovery
         private class HttpResponseState
         {
             public Stream Stream { get; set; }
-            public byte[] Buffer { get; set; }
+            public byte[] Buffer { get; set; }            
             public readonly List<byte[]> Result = new List<byte[]>();
+            public HttpListenerRequest Request;
             public HttpListenerResponse Response;
         }
 
-        public SimpleHttpServer(ResponseBytesWithResultHandler responseBytesWithResultHandler)
+        public SimpleHttpServer(ResponseBytesWithResultHandler responseBytesWithResultHandler, int port, string appIdentifier)
         {
+            _appIdentifier = appIdentifier;
             _responseBytesWithResultHandler = responseBytesWithResultHandler;
             _listener = new HttpListener();
-            _listener.Prefixes.Add("http://*:8080/");
+            _listener.Prefixes.Add(String.Format("http://*:{0}/", port));
             _listener.Start();
             _listener.BeginGetContext(HandleRequest, _listener);
 
@@ -36,8 +39,20 @@ namespace ServiceDiscovery
         }
 
         private void Callback(IAsyncResult ar)
-        {
+        {            
             var state = (HttpResponseState)ar.AsyncState;
+
+            if (state.Request.Url.PathAndQuery.Contains("WhoAreYou"))
+            {
+                var responseBytes = Encoding.UTF8.GetBytes(_appIdentifier);
+                state.Response.ContentType = "text/plain";
+                state.Response.StatusCode = (int)HttpStatusCode.OK;
+                state.Response.ContentLength64 = responseBytes.Length;
+                state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
+                state.Response.OutputStream.Close();
+                return;
+            }
+
             var bytesRead = state.Stream.EndRead(ar);
             if (bytesRead > 0)
             {
@@ -53,7 +68,7 @@ namespace ServiceDiscovery
                 var codeResult = _responseBytesWithResultHandler(totalBytes);
                 var response = codeResult ?? "ok";
                 var responseBytes = Encoding.UTF8.GetBytes(response);
-                state.Response.ContentType = "text/html";
+                state.Response.ContentType = "text/plain";
                 state.Response.StatusCode = (int)HttpStatusCode.OK;
                 state.Response.ContentLength64 = responseBytes.Length;
                 state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
@@ -64,9 +79,15 @@ namespace ServiceDiscovery
         private void HandleRequest(IAsyncResult result)
         {
             var context = _listener.EndGetContext(result);
-            _listener.BeginGetContext(HandleRequest, _listener);
-            var state = new HttpResponseState { Stream = context.Request.InputStream, Buffer = new byte[ChunkSize], Response = context.Response };
+            _listener.BeginGetContext(HandleRequest, _listener);            
+            var state = new HttpResponseState { Stream = context.Request.InputStream, Buffer = new byte[ChunkSize], Response = context.Response, Request = context.Request };
             context.Request.InputStream.BeginRead(state.Buffer, 0, state.Buffer.Length, Callback, state);        
+        }
+
+        public static string SendWhoAreYou(string ipAddress)
+        {
+            var wc = new WebClient();
+            return wc.DownloadString(ipAddress+"/WhoAreYou");
         }
 
         public static string SendPostRequest(string ipAddress, byte[] byteArray)
