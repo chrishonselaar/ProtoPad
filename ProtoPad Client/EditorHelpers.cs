@@ -27,7 +27,7 @@ namespace ProtoPad_Client
             if (String.IsNullOrWhiteSpace(mainMonodroidAssemblyName)) return new string[]{};
             var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "Mono.Android.dll", SearchOption.AllDirectories);
             //var mainMonodroidAssemblyPath = fileNames.First(f => Assembly.LoadFrom(f). .FullName == mainMonodroidAssemblyName);
-            var mainMonodroidAssemblyPath = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoAndroid\v4.0\Mono.Android.dll";
+            const string mainMonodroidAssemblyPath = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoAndroid\v4.0\Mono.Android.dll";
             var monoDroidAssembliesParentPath = Directory.GetParent(mainMonodroidAssemblyPath).Parent.FullName;
             var androidSystemDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
             //var androidMsCorDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
@@ -152,7 +152,7 @@ public class __MTDynamicCode
         ___lastExecutedStatementOffset = offset;
     }
     public static int ___maxEnumerableItemCount = 1000;
-    public static List<Tuple<string, object, int, bool>> ___dumps = new List<Tuple<string, object, int, bool>>();
+    public static List<DumpHelpers.DumpObj> ___dumps = new List<DumpHelpers.DumpObj>();
 
     __STATEMENTSHERE__    
 }";
@@ -236,42 +236,6 @@ public static class DumpHelpers
 
 public static class UtilityMethods
 {
-    public static Task<T> GetEventAsync<T>(this object eventSource, string eventName) where T : EventArgs
-    {
-        var tcs = new TaskCompletionSource<T>();
-
-        var type = eventSource.GetType();
-        var ev = type.GetEvent(eventName);
-
-        EventHandler handler = null;
-        handler = delegate(object sender, EventArgs e)
-            {
-                ev.RemoveEventHandler(eventSource, handler);
-                tcs.SetResult((T)e);
-            };
-
-        ev.AddEventHandler(eventSource, handler);
-        return tcs.Task;
-    }
-
-    public static Task<NavigationEventArgs> GetNavigatedEventAsync(this object eventSource, string eventName)
-    {
-        var tcs = new TaskCompletionSource<NavigationEventArgs>();
-
-        var type = eventSource.GetType();
-        var ev = type.GetEvent(eventName);
-
-        NavigatedEventHandler handler = null;
-        handler = delegate(object sender, NavigationEventArgs e)
-        {
-            ev.RemoveEventHandler(eventSource, handler);
-            tcs.SetResult(e);
-        };
-
-        ev.AddEventHandler(eventSource, handler);
-        return tcs.Task;
-    }
-
     public static T JsonDecode<T>(string jsonValue)
     {
         var serializer = new DataContractJsonSerializer(typeof(T));

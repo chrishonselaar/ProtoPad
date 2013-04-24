@@ -74,6 +74,9 @@
     <CodesignKey>iPhone Distribution</CodesignKey>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\ServiceDiscovery\DataExchange.cs">
+      <Link>DataExchange.cs</Link>
+    </Compile>
     <Compile Include="..\ServiceDiscovery\Helpers.cs">
       <Link>Helpers.cs</Link>
     </Compile>

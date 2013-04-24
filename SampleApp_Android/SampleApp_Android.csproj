@@ -29,7 +29,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AndroidUseSharedRuntime>True</AndroidUseSharedRuntime>
     <AndroidLinkMode>None</AndroidLinkMode>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -70,7 +69,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProtoPadServerLibrary_Android\ProtoPadServerLibrary_Android.csproj">
-      <Project>{0f163a09-2124-457b-9257-a15dd13b8906}</Project>
+      <Project>{0F163A09-2124-457B-9257-A15DD13B8906}</Project>
       <Name>ProtoPadServerLibrary_Android</Name>
     </ProjectReference>
   </ItemGroup>

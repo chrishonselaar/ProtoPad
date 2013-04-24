@@ -1,37 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Xml.Linq;
+using ServiceDiscovery;
 
 namespace ProtoPad_Client
 {
-    public class DumpValue
-    {
-        public enum DumpTypes { PrimitiveEnumerable, ComplexEnumerable, Group, Primitive, Complex, BeyondMaxLevel, Image }
-
-        public string TypeName { get; set; }
-        public DumpTypes DumpType { get; set; }
-        public object PrimitiveValue { get; set; } // only value types
-        public Dictionary<string, DumpValue> ComplexValue { get; set; }
-        public List<object> PrimitiveEnumerable { get; set; } // only value types
-        public List<DumpValue> ComplexEnumerable { get; set; }
-    }
-
-    [DataContract]
-    public class ResultPair
-    {
-        public string ResultKey;
-        public DumpValue ResultValue;
-    }
-
-    [DataContract]
-    public class ExecuteResponse
-    {
-        public string ErrorMessage { get; set; }
-        public List<ResultPair> Results { get; set; }
-    }
-
     public static class DumpToXhtml
     {
         public static XNode Dump(DumpValue dumpValue, int level)

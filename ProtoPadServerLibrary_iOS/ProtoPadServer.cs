@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -81,7 +82,8 @@ namespace ProtoPadServerLibrary_iOS
                 var dumpValue = executeResponse.GetDumpValues();
                 if (dumpValue != null)
                 {
-                    executeResponse.Results = dumpValue.Select(v => new ResultPair(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.GetMaxEnumerableItemCount()))).ToList();
+                    //executeResponse.Results = dumpValue.Select(v => new ResultPair(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.GetMaxEnumerableItemCount()))).ToList();
+                    executeResponse.Results = dumpValue.Select(v => new ResultPair(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.GetMaxEnumerableItemCount()))).ToList();
                 }
                 response = JsonEncode(executeResponse);
             }
@@ -92,47 +94,6 @@ namespace ProtoPadServerLibrary_iOS
             finally
             {
                 remoteCommandDoneEvent.Set();
-            }
-        }
-
-        public class ResultPair
-        {
-            public string ResultKey;
-            public DumpValue ResultValue;
-
-            public ResultPair(string resultKey, DumpValue resultValue)
-            {
-                ResultKey = resultKey;
-                ResultValue = resultValue;
-            }
-        }
-
-        public class ExecuteResponse
-        {
-            public string ErrorMessage { get; set; }
-            public List<ResultPair> Results { get; set; }
-
-            private List<Tuple<string, object, int, bool>> DumpValues;
-            private int MaxEnumerableItemCount;
-
-            public void SetMaxEnumerableItemCount(int maxEnumerableItemCount)
-            {
-                MaxEnumerableItemCount = maxEnumerableItemCount;
-            }
-
-            public int GetMaxEnumerableItemCount()
-            {
-                return MaxEnumerableItemCount;
-            }
-
-            public void SetDumpValues(List<Tuple<string, object, int, bool>> dumpValues)
-            {
-                DumpValues = dumpValues;
-            }
-
-            public List<Tuple<string, object, int, bool>> GetDumpValues()
-            {
-                return DumpValues;
             }
         }
 
@@ -159,7 +120,8 @@ namespace ProtoPadServerLibrary_iOS
             try
             {
                 printMethod.Invoke(loadedInstance, new object[] { appDelegate, window });
-                response.SetDumpValues(loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<Tuple<string, object, int, bool>>);
+                var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
+                response.SetDumpValues(dumpsRaw.Cast<object>().Select(o=>GetDumpObjectFromObject).ToList());
                 response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
             }
             catch (Exception e)
@@ -169,6 +131,19 @@ namespace ProtoPadServerLibrary_iOS
             }
 
             return response;
+        }
+
+        public static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
+        {                
+            var objType = value.GetType();
+            var dumpObject = new DumpHelpers.DumpObj
+                {
+                    Description = Convert.ToString(objType.GetField("Description").GetValue(value)),
+                    Value = objType.GetField("Value").GetValue(value),
+                    Level = Convert.ToInt32(objType.GetField("Level").GetValue(value)),
+                    ToDataGrid = Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
+                };
+            return dumpObject;
         }
 
         public void Dispose()

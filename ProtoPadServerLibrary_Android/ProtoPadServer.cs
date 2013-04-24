@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,7 +13,6 @@ using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
 using ServiceDiscovery;
-using System.Runtime.CompilerServices;
 using Debug = System.Diagnostics.Debug;
 
 namespace ProtoPadServerLibrary_Android
@@ -95,9 +95,10 @@ namespace ProtoPadServerLibrary_Android
             try
             {
                 var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _contextActivity);
-                if (executeResponse.DumpValues != null)
+                var dumpValues = executeResponse.GetDumpValues();
+                if (dumpValues != null)
                 {
-                    executeResponse.Results = executeResponse.DumpValues.Select(v => new Tuple<string, DumpValue>(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.MaxEnumerableItemCount))).ToList();
+                    executeResponse.Results = dumpValues.Select(v => new ResultPair(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.GetMaxEnumerableItemCount()))).ToList();
                 }
                 response = JsonEncode(executeResponse);
             }
@@ -142,14 +143,6 @@ namespace ProtoPadServerLibrary_Android
             return new IPAddress(quads);
         }
 
-        private class ExecuteResponse
-        {
-            public string ErrorMessage { get; set; }
-            public List<DumpHelpers.DumpObj> DumpValues;
-            public List<Tuple<string, DumpValue>> Results { get; set; }
-            public int MaxEnumerableItemCount;
-        }
-
         private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, Activity activity)
         {
             MethodInfo printMethod;
@@ -174,9 +167,9 @@ namespace ProtoPadServerLibrary_Android
             try
             {
                 printMethod.Invoke(loadedInstance, new object[] { activity, activity.Window });
-                var rawValue = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance);
-                response.DumpValues = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<DumpHelpers.DumpObj>;
-                response.MaxEnumerableItemCount = Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance));
+                var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
+                response.SetDumpValues(dumpsRaw.Cast<object>().Select(GetDumpObjectFromObject).ToList());
+                response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
             }
             catch (Exception e)
             {
@@ -187,25 +180,15 @@ namespace ProtoPadServerLibrary_Android
             return response;
         }
 
-        public static class DumpHelpers
+        public static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
         {
-            public const int DefaultLevel = 3;
-
-            public class DumpObj
-            {
-                public string Description;
-                public object Value;
-                public int Level;
-                public bool ToDataGrid;
-
-                public DumpObj(string description, object value, int level, bool toDataGrid)
-                {
-                    Description = description;
-                    Value = value;
-                    Level = level;
-                    ToDataGrid = toDataGrid;
-                }
-            }
+            var objType = value.GetType();
+            var dumpObject = new DumpHelpers.DumpObj(Convert.ToString(objType.GetField("Description").GetValue(value)),
+                objType.GetField("Value").GetValue(value),
+                Convert.ToInt32(objType.GetField("Level").GetValue(value)),
+                Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
+            );
+            return dumpObject;
         }
     }
 }
