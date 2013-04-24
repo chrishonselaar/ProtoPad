@@ -68,12 +68,6 @@
     <AndroidResource Include="Resources\Drawable\Icon.png" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ProtoPadServerLibrary_Android\ProtoPadServerLibrary_Android.csproj">
-      <Project>{0F163A09-2124-457B-9257-A15DD13B8906}</Project>
-      <Name>ProtoPadServerLibrary_Android</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="Properties\AndroidManifest.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
@@ -84,4 +78,10 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <ProjectReference Include="..\ProtoPadServerLibrary_Android\ProtoPadServerLibrary_Android.csproj">
+      <Project>{0F163A09-2124-457B-9257-A15DD13B8906}</Project>
+      <Name>ProtoPadServerLibrary_Android</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

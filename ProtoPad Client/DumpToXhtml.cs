@@ -30,7 +30,7 @@ namespace ProtoPad_Client
                     return new XElement("table", new XAttribute("data-level", level), allKeys.Count > 10 ? new XAttribute("class", "collapsed") : null,
                         new XElement("thead",
                             new XElement("tr", new XElement("td", new XElement("div", new XAttribute("class", "leftarrow"), " "), new XElement("span", String.Format("{0} ({1} item{2})", dumpValue.TypeName,
-                                dumpValue.ComplexEnumerable.Count, dumpValue.ComplexEnumerable.Count == 1 ? "" : "s")), new XAttribute("colspan", allKeys.Count))),
+                                dumpValue.ComplexEnumerable.Count(), dumpValue.ComplexEnumerable.Count() == 1 ? "" : "s")), new XAttribute("colspan", allKeys.Count))),
                             new XElement("tr", allKeys.Select(v => new XElement("th", v)))),
                         new XElement("tbody", dumpValue.ComplexEnumerable.Select(v =>
                             new XElement("tr", allKeys.Select(v2 => new XElement("td", v.ComplexValue.ContainsKey(v2) ? 
@@ -40,7 +40,7 @@ namespace ProtoPad_Client
                     return new XElement("table", new XAttribute("data-level", level),
                         new XElement("thead",
                             new XElement("tr", new XElement("td", new XElement("div", new XAttribute("class", "leftarrow"), " "), new XElement("span", String.Format("{0} ({1} item{2})", dumpValue.TypeName,
-                                dumpValue.PrimitiveEnumerable.Count, dumpValue.PrimitiveEnumerable.Count == 1 ? "" : "s")))), 
+                                dumpValue.PrimitiveEnumerable.Count(), dumpValue.PrimitiveEnumerable.Count() == 1 ? "" : "s")))), 
                         new XElement("tbody", dumpValue.PrimitiveEnumerable.Select(v => 
                             new XElement("tr", new XElement("td", v))))));
             }

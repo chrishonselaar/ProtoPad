@@ -40,12 +40,26 @@ namespace ServiceDiscovery
         }
     }
 
+	[DataContract]
+	public class ExecuteResponseSerialize
+	{
+		[DataMember]
+		public string ErrorMessage { get; set; }
+		[DataMember]
+		public List<ResultPair> Results { get; set; }
+	}
+
+	[DataContract]
     public class ExecuteResponse
     {
+		[DataMember]
         public string ErrorMessage { get; set; }
+		[DataMember]
         public List<ResultPair> Results { get; set; }
 
+		[IgnoreDataMember]
         private List<DumpHelpers.DumpObj> DumpValues;
+		[IgnoreDataMember]
         private int MaxEnumerableItemCount;
 
         public void SetMaxEnumerableItemCount(int maxEnumerableItemCount)
@@ -69,18 +83,23 @@ namespace ServiceDiscovery
         }
     }
 
+	[DataContract]
     public class DumpValue
     {
         public enum DumpTypes { PrimitiveEnumerable, ComplexEnumerable, Group, Primitive, Complex, BeyondMaxLevel, Image }
 
+		[DataMember]
         public string TypeName { get; set; }
+		[DataMember]
         public DumpTypes DumpType { get; set; }
-
+		[DataMember]
         public object PrimitiveValue { get; set; } // only value types
+		[DataMember]
         public Dictionary<string, DumpValue> ComplexValue { get; set; }
-
+		[DataMember]
         public List<object> PrimitiveEnumerable { get; set; } // only value types
-        public List<DumpValue> ComplexEnumerable { get; set; }
+		[DataMember]
+		public List<DumpValue> ComplexEnumerable { get; set; }
 
         public void AddComplexFieldValue(string fieldName, DumpValue fieldValue)
         {

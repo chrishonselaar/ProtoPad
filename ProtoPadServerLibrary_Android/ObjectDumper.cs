@@ -19,9 +19,9 @@ namespace ProtoPadServerLibrary_Android
         }
 
         /// <param name="primitiveEnumerable"> must be a list of value type!!</param>
-        public static DumpValue AsPrimitiveEnumerable(List<object> primitiveEnumerable, string typeName)
+		public static DumpValue AsPrimitiveEnumerable(IEnumerable<object> primitiveEnumerable, string typeName)
         {
-            return new DumpValue { TypeName = typeName, DumpType = DumpValue.DumpTypes.PrimitiveEnumerable, PrimitiveEnumerable = primitiveEnumerable };
+            return new DumpValue { TypeName = typeName, DumpType = DumpValue.DumpTypes.PrimitiveEnumerable, PrimitiveEnumerable = primitiveEnumerable.ToList () };
         }
 
         public static DumpValue AsComplexValue(string typeName)
@@ -29,9 +29,9 @@ namespace ProtoPadServerLibrary_Android
             return new DumpValue { TypeName = typeName, DumpType = DumpValue.DumpTypes.Complex, ComplexValue = new Dictionary<string, DumpValue>() };
         }
 
-        public static DumpValue AsComplexEnumerable(List<DumpValue> complexEnumerable, string typeName)
+		public static DumpValue AsComplexEnumerable(IEnumerable<DumpValue> complexEnumerable, string typeName)
         {
-            return new DumpValue { TypeName = typeName, DumpType = DumpValue.DumpTypes.ComplexEnumerable, ComplexEnumerable = complexEnumerable };
+            return new DumpValue { TypeName = typeName, DumpType = DumpValue.DumpTypes.ComplexEnumerable, ComplexEnumerable = complexEnumerable.ToList () };
         }
 
         public static DumpValue AsBeyondMaxLevel(string typeName)
@@ -65,6 +65,8 @@ namespace ProtoPadServerLibrary_Android
             return DumpObjectRecursive(viewModel, maxDepth, 0, maxEnumerableItemCount);
         }
 
+		private static string lastFieldName = null;
+
         private static DumpValue DumpObjectRecursive(object sourceValue, int maxDepth, int currentDepth, int maxEnumerableItemCount)
         {
             if (sourceValue == null) return null;
@@ -87,15 +89,42 @@ namespace ProtoPadServerLibrary_Android
             catch { }
             if (isGenericEnumerable)
             {
-                var items = (IEnumerable)sourceValue;
-                var valueList = items.Cast<object>().Take(maxEnumerableItemCount).Select(item => DumpObjectRecursive(item, maxDepth, currentDepth + 1, maxEnumerableItemCount)).Where(v => v != null).ToList();
-                if (valueList.Any())
-                {
-                    var firstValue = valueList.First();
-                    return firstValue.DumpType == DumpValue.DumpTypes.Primitive
-                                ? AsPrimitiveEnumerable(valueList.Select(v => v.PrimitiveValue).ToList(), modelType.Name)
-                                : AsComplexEnumerable(valueList, modelType.Name);
-                }
+				var items = sourceValue as IEnumerable;
+				if (items != null)
+				{
+					var valueList = new List<DumpValue>();
+					int i = 0;
+					var enumerator = items.GetEnumerator();
+					object item = null;
+					if (enumerator != null)
+					{
+						while (true)
+						{
+							try
+							{
+								if (!enumerator.MoveNext()) break;
+							} catch
+							{
+								// MoveNext() throws an Object Not Initialized exception for Android.RunTime.JavaArray types? Xamarin.Android bug?
+								Console.WriteLine (modelType.Name, lastFieldName);
+								break;
+							}
+							item = enumerator.Current;
+							
+							if (i >= maxEnumerableItemCount) break;
+							var processedItem = DumpObjectRecursive(item, maxDepth, currentDepth + 1, maxEnumerableItemCount);
+							if (processedItem != null) valueList.Add (processedItem);
+							i++;
+						}
+						if (valueList.Any())
+						{
+							var firstValue = valueList.First();
+							return firstValue.DumpType == DumpValue.DumpTypes.Primitive
+								? AsPrimitiveEnumerable(valueList.Select(v => v.PrimitiveValue), modelType.Name)
+									: AsComplexEnumerable(valueList, modelType.Name);
+						}
+					}
+				}
             }
             else if (modelType == typeof(IEnumerable))
             {
@@ -131,6 +160,7 @@ namespace ProtoPadServerLibrary_Android
                 return;
             }
             var fieldName = property == null ? field.Name : property.Name;
+			lastFieldName = fieldName;
             if (fieldValue == null) return;
 
             var value = DumpObjectRecursive(fieldValue, maxDepth, currentDepth + 1, maxEnumerableItemCount);
