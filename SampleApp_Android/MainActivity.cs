@@ -29,7 +29,8 @@ namespace SampleApp_Android
 
         protected override void OnDestroy()
         {
-            // Dispose the ProtoPad server to release some important resources (such as an internally used MultiCast lock)
+            // Dispose the ProtoPad server to stop listening for requests
+            // and to release some important resources (such as an internally used MultiCast lock)
             if (_protoPadServer != null) _protoPadServer.Dispose();
         }
     }

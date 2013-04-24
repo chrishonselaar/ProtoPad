@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -11,8 +10,10 @@ using System.Threading;
 using Android.App;
 using Android.Net;
 using Android.Net.Wifi;
-using Android.Views;
+using Android.OS;
 using ServiceDiscovery;
+using System.Runtime.CompilerServices;
+using Debug = System.Diagnostics.Debug;
 
 namespace ProtoPadServerLibrary_Android
 {
@@ -46,6 +47,8 @@ namespace ProtoPadServerLibrary_Android
             ListeningPort = overrideListeningPort ?? 8080;
             LocalIPAddress = Helpers.GetCurrentIPAddress();
 
+            var mainMonodroidAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name.ToLower() == "mono.android");
+
             _httpServer = new SimpleHttpServer(responseBytes =>
             {
                 var response = "{}";
@@ -53,7 +56,7 @@ namespace ProtoPadServerLibrary_Android
                 _contextActivity.RunOnUiThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));                
                 remoteCommandDoneEvent.WaitOne();
                 return response;
-            }, ListeningPort, "Android");
+            }, ListeningPort, "Android", mainMonodroidAssembly.FullName);
 
             IPAddress broadCastAddress;
             using (var wifi = _contextActivity.GetSystemService(Android.Content.Context.WifiService) as WifiManager)
@@ -72,7 +75,8 @@ namespace ProtoPadServerLibrary_Android
                 broadCastAddress = GetBroadcastAddress(wifi);                
             }
 
-            _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), broadCastAddress);          
+            var inEmulator = Build.Brand.Equals("generic", StringComparison.InvariantCultureIgnoreCase);
+            _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", inEmulator ? "localhost" : LocalIPAddress.ToString(), inEmulator ? "?" : ListeningPort.ToString()), broadCastAddress);          
         }
 
         public void Dispose()
@@ -93,7 +97,7 @@ namespace ProtoPadServerLibrary_Android
                 var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _contextActivity);
                 if (executeResponse.DumpValues != null)
                 {
-                    executeResponse.Results = executeResponse.DumpValues.Select(v => new Tuple<string, DumpValue>(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.MaxEnumerableItemCount))).ToList();
+                    executeResponse.Results = executeResponse.DumpValues.Select(v => new Tuple<string, DumpValue>(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.MaxEnumerableItemCount))).ToList();
                 }
                 response = JsonEncode(executeResponse);
             }
@@ -129,7 +133,7 @@ namespace ProtoPadServerLibrary_Android
             }
             catch (Java.Lang.SecurityException e)
             {
-                Debug.WriteLine("Could not optain Wifi information: {0}. Did you enable ACCESS_WIFI_STATE permission in your app manifest?", e.Message);
+                Debug.WriteLine("Could not obtain Wifi information: {0}. Did you enable ACCESS_WIFI_STATE permission in your app manifest?", e.Message);
                 return null;
             }
             var broadcast = (dhcp.IpAddress & dhcp.Netmask) | ~dhcp.Netmask;
@@ -141,7 +145,7 @@ namespace ProtoPadServerLibrary_Android
         private class ExecuteResponse
         {
             public string ErrorMessage { get; set; }
-            public List<Tuple<string, object, int, bool>> DumpValues;
+            public List<DumpHelpers.DumpObj> DumpValues;
             public List<Tuple<string, DumpValue>> Results { get; set; }
             public int MaxEnumerableItemCount;
         }
@@ -158,6 +162,7 @@ namespace ProtoPadServerLibrary_Android
                 var loadedType = loadedAssembly.GetType("__MTDynamicCode");
                 if (loadedType == null) return null;
                 loadedInstance = Activator.CreateInstance(loadedType);
+                
                 printMethod = loadedInstance.GetType().GetMethod("Main");
             }
             catch (Exception e)
@@ -168,8 +173,9 @@ namespace ProtoPadServerLibrary_Android
             var response = new ExecuteResponse();
             try
             {
-                printMethod.Invoke(loadedInstance, new object[] { activity });
-                response.DumpValues = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<Tuple<string, object, int, bool>>;
+                printMethod.Invoke(loadedInstance, new object[] { activity, activity.Window });
+                var rawValue = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance);
+                response.DumpValues = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<DumpHelpers.DumpObj>;
                 response.MaxEnumerableItemCount = Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance));
             }
             catch (Exception e)
@@ -179,6 +185,27 @@ namespace ProtoPadServerLibrary_Android
             }
 
             return response;
+        }
+
+        public static class DumpHelpers
+        {
+            public const int DefaultLevel = 3;
+
+            public class DumpObj
+            {
+                public string Description;
+                public object Value;
+                public int Level;
+                public bool ToDataGrid;
+
+                public DumpObj(string description, object value, int level, bool toDataGrid)
+                {
+                    Description = description;
+                    Value = value;
+                    Level = level;
+                    ToDataGrid = toDataGrid;
+                }
+            }
         }
     }
 }

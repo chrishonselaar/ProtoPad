@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
@@ -18,6 +19,7 @@ namespace ProtoPadServerLibrary_iOS
         public int ListeningPort { get; private set; }
         public string BroadcastedAppName { get; private set; }
 
+        private readonly UIApplicationDelegate _appDelegate;
         private readonly UIWindow _window;
         private readonly SimpleHttpServer _httpServer;
         private readonly UdpDiscoveryServer _udpServer;
@@ -29,29 +31,33 @@ namespace ProtoPadServerLibrary_iOS
         /// <string>YES</string>
         /// </summary>
         /// <param name="window">Supply your main application window here. This will be made scriptable from the ProtoPad Client.</param>
-        public static ProtoPadServer Create(UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
+        public static ProtoPadServer Create(UIApplicationDelegate appDelegate, UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
-            return new ProtoPadServer(window, overrideListeningPort, overrideBroadcastedAppName);
+            return new ProtoPadServer(appDelegate, window, overrideListeningPort, overrideBroadcastedAppName);
         }
 
-        private ProtoPadServer(UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
+        private ProtoPadServer(UIApplicationDelegate appDelegate, UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
+            _appDelegate = appDelegate;
             _window = window;
 
             BroadcastedAppName = overrideBroadcastedAppName ?? String.Format("ProtoPad Service on iOS Device {0}", UIDevice.CurrentDevice.Name);
             ListeningPort = overrideListeningPort ?? 8080;
             LocalIPAddress = Helpers.GetCurrentIPAddress();
 
+            var mainMonotouchAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name.ToLower() == "monotouch");
+
             _httpServer = new SimpleHttpServer(responseBytes =>
             {
                 var response = "{}";
                 var remoteCommandDoneEvent = new AutoResetEvent(false);
-                _window.InvokeOnMainThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));
+                _appDelegate.InvokeOnMainThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));
                 remoteCommandDoneEvent.WaitOne();
                 return response;
-            }, ListeningPort, "iOS");
+            }, ListeningPort, "iOS", mainMonotouchAssembly.FullName);
 
-            _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), Helpers.GetCurrentIPAddress());          
+            //_udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), Helpers.GetCurrentIPAddress());          
+            _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort));
         }
 
         public static string JsonEncode(object value)
@@ -71,10 +77,11 @@ namespace ProtoPadServerLibrary_iOS
         {
             try
             {
-                var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _window);
-                if (executeResponse.DumpValues != null)
+                var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _appDelegate, _window);
+                var dumpValue = executeResponse.GetDumpValues();
+                if (dumpValue != null)
                 {
-                    executeResponse.Results = executeResponse.DumpValues.Select(v => new Tuple<string, DumpValue>(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.MaxEnumerableItemCount))).ToList();
+                    executeResponse.Results = dumpValue.Select(v => new ResultPair(v.Item1, Dumper.ObjectToDumpValue(v.Item2, v.Item3, executeResponse.GetMaxEnumerableItemCount()))).ToList();
                 }
                 response = JsonEncode(executeResponse);
             }
@@ -88,15 +95,48 @@ namespace ProtoPadServerLibrary_iOS
             }
         }
 
-        private class ExecuteResponse
+        public class ResultPair
         {
-            public string ErrorMessage { get; set; }
-            public List<Tuple<string, object, int, bool>> DumpValues;
-            public List<Tuple<string, DumpValue>> Results { get; set; }
-            public int MaxEnumerableItemCount;
+            public string ResultKey;
+            public DumpValue ResultValue;
+
+            public ResultPair(string resultKey, DumpValue resultValue)
+            {
+                ResultKey = resultKey;
+                ResultValue = resultValue;
+            }
         }
 
-        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, UIWindow window)
+        public class ExecuteResponse
+        {
+            public string ErrorMessage { get; set; }
+            public List<ResultPair> Results { get; set; }
+
+            private List<Tuple<string, object, int, bool>> DumpValues;
+            private int MaxEnumerableItemCount;
+
+            public void SetMaxEnumerableItemCount(int maxEnumerableItemCount)
+            {
+                MaxEnumerableItemCount = maxEnumerableItemCount;
+            }
+
+            public int GetMaxEnumerableItemCount()
+            {
+                return MaxEnumerableItemCount;
+            }
+
+            public void SetDumpValues(List<Tuple<string, object, int, bool>> dumpValues)
+            {
+                DumpValues = dumpValues;
+            }
+
+            public List<Tuple<string, object, int, bool>> GetDumpValues()
+            {
+                return DumpValues;
+            }
+        }
+
+        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, UIApplicationDelegate appDelegate, UIWindow window)
         {
             MethodInfo printMethod;
 
@@ -118,9 +158,9 @@ namespace ProtoPadServerLibrary_iOS
             var response = new ExecuteResponse();
             try
             {
-                printMethod.Invoke(loadedInstance, new object[] { window });
-                response.DumpValues = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<Tuple<string, object, int, bool>>;
-                response.MaxEnumerableItemCount = Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance));
+                printMethod.Invoke(loadedInstance, new object[] { appDelegate, window });
+                response.SetDumpValues(loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as List<Tuple<string, object, int, bool>>);
+                response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
             }
             catch (Exception e)
             {

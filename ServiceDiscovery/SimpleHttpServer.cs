@@ -12,6 +12,7 @@ namespace ServiceDiscovery
     {
         private readonly HttpListener _listener;
         private readonly string _appIdentifier;
+        private readonly string _referenceAssemblyName;
         private const int ChunkSize = 1024;
 
         public delegate string ResponseBytesWithResultHandler(byte[] responseBytes);
@@ -26,9 +27,10 @@ namespace ServiceDiscovery
             public HttpListenerResponse Response;
         }
 
-        public SimpleHttpServer(ResponseBytesWithResultHandler responseBytesWithResultHandler, int port, string appIdentifier)
+        public SimpleHttpServer(ResponseBytesWithResultHandler responseBytesWithResultHandler, int port, string appIdentifier, string referenceAssemblyName)
         {
             _appIdentifier = appIdentifier;
+            _referenceAssemblyName = referenceAssemblyName;
             _responseBytesWithResultHandler = responseBytesWithResultHandler;
             _listener = new HttpListener();
             _listener.Prefixes.Add(String.Format("http://*:{0}/", port));
@@ -45,6 +47,17 @@ namespace ServiceDiscovery
             if (state.Request.Url.PathAndQuery.Contains("WhoAreYou"))
             {
                 var responseBytes = Encoding.UTF8.GetBytes(_appIdentifier);
+                state.Response.ContentType = "text/plain";
+                state.Response.StatusCode = (int)HttpStatusCode.OK;
+                state.Response.ContentLength64 = responseBytes.Length;
+                state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
+                state.Response.OutputStream.Close();
+                return;
+            }
+
+            if (state.Request.Url.PathAndQuery.Contains("GetMainXamarinAssembly"))
+            {
+                var responseBytes = Encoding.UTF8.GetBytes(_referenceAssemblyName);
                 state.Response.ContentType = "text/plain";
                 state.Response.StatusCode = (int)HttpStatusCode.OK;
                 state.Response.ContentLength64 = responseBytes.Length;
@@ -90,6 +103,11 @@ namespace ServiceDiscovery
             return wc.DownloadString(ipAddress+"/WhoAreYou");
         }
 
+        public static string SendGetMainXamarinAssemblyName(string ipAddress)
+        {
+            var wc = new WebClient();
+            return wc.DownloadString(ipAddress + "/GetMainXamarinAssembly");
+        }
         public static string SendPostRequest(string ipAddress, byte[] byteArray)
         {
             var request = WebRequest.Create(ipAddress);

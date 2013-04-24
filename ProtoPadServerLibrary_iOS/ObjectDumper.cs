@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using MonoTouch.Foundation;
 using MonoTouch.UIKit;
 
@@ -14,10 +15,8 @@ namespace ProtoPadServerLibrary_iOS
 
         public string TypeName { get; set; }
         public DumpTypes DumpType { get; set; }
-
         public object PrimitiveValue { get; set; } // only value types
         public Dictionary<string, DumpValue> ComplexValue { get; set; }
-
         public List<object> PrimitiveEnumerable { get; set; } // only value types
         public List<DumpValue> ComplexEnumerable { get; set; }
 

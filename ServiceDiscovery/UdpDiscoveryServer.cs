@@ -8,7 +8,7 @@ namespace ServiceDiscovery
 {
     public class UdpDiscoveryServer: IDisposable
     {
-        public const int UdpServerPort = 15353; // TODO: arbitrary value for now - update to use automatic free port finder?
+        public const int UdpServerPort = 5356; // TODO: arbitrary value for now - update to use automatic free port finder?
 
         private readonly string _respondWithServerName;
         private readonly string _respondWithEndpointAddress;
