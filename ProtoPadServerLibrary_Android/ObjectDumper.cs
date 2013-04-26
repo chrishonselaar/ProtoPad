@@ -98,23 +98,25 @@ namespace ProtoPadServerLibrary_Android
 					object item = null;
 					if (enumerator != null)
 					{
-						while (true)
+						bool hasItems;
+						try
 						{
-							try
-							{
-								if (!enumerator.MoveNext()) break;
-							} catch
-							{
-								// MoveNext() throws an Object Not Initialized exception for Android.RunTime.JavaArray types? Xamarin.Android bug?
-								Console.WriteLine (modelType.Name, lastFieldName);
-								break;
-							}
+							// a bug in Xamarin.Android causes Application.SharedLibraries to contain a fake enumerable, which will throw an exception if enumerated.
+							// we work around this for now by using a safe initial enumeration attempt
+							hasItems = enumerator.MoveNext();
+						} catch
+						{
+							hasItems = false;
+						}
+
+						while (hasItems)
+						{
 							item = enumerator.Current;
-							
 							if (i >= maxEnumerableItemCount) break;
 							var processedItem = DumpObjectRecursive(item, maxDepth, currentDepth + 1, maxEnumerableItemCount);
 							if (processedItem != null) valueList.Add (processedItem);
 							i++;
+							hasItems = enumerator.MoveNext();
 						}
 						if (valueList.Any())
 						{

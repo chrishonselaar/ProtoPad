@@ -9,6 +9,8 @@ using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Navigation;
+using ActiproSoftware.Text;
+using ActiproSoftware.Text.Implementation;
 using ActiproSoftware.Text.Languages.CSharp.Implementation;
 using ActiproSoftware.Text.Languages.DotNet;
 using ActiproSoftware.Text.Languages.DotNet.Ast.Implementation;
@@ -24,14 +26,12 @@ namespace ProtoPad_Client
     public partial class MainWindow
     {
         public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
-        public const int MulticastForwardedHostPort = 5356; // todo: auto-find available port
-        public const int HttpForwardedHostPort = 18080; // todo: auto-find available port
 
         private IHTMLElement _htmlHolder;
         private IHTMLWindow2 _htmlWindow;
         private string _currentWrapText;
         private IProjectAssembly _projectAssembly;
-        private UdpDiscoveryClient _udpDiscoveryClient;
+        
         private readonly List<string> _referencedAssemblies = new List<string>();  
 
         private string WrapHeader
@@ -46,7 +46,7 @@ namespace ProtoPad_Client
         private EditorHelpers.CodeType _currentCodeType = EditorHelpers.CodeType.Statements;
         private DeviceItem _currentDevice;
 
-        public enum DeviceTypes {Android, iOS}
+        public enum DeviceTypes {Android, iOS, Local}
 
         public class DeviceItem
         {
@@ -61,7 +61,7 @@ namespace ProtoPad_Client
             InitializeComponent();            
 
             InitializeEditor();
-            SearchForRunningProtoPadServers();
+            InitializeResultWindow();
         }
 
         private void LogToResultsWindow(string message, params object[] stringFormatArguments)
@@ -72,57 +72,15 @@ namespace ProtoPad_Client
             _htmlHolder.innerHTML = formattedMessage;
         }
 
-        private void SearchForRunningProtoPadServers()
+        private void InitializeResultWindow()
         {
-            _udpDiscoveryClient = new UdpDiscoveryClient(
-                ready => { },
-                (name, address) => Dispatcher.Invoke((Action)(() =>
-                    {
-                        if (address.Contains(":?/")) // Android emulator, so use forwarded ports
-                        {
-                            // todo: use telnet to discover already set up port forwards, instead of hardcoding
-                            address = address.Replace(":?/", String.Format(":{0}/", HttpForwardedHostPort));
-                        }
-                        var deviceItem = new DeviceItem
-                            {
-                                DeviceAddress = address,
-                                DeviceName = name,
-                                DeviceType =
-                                    name.StartsWith("ProtoPad Service on ANDROID Device ")
-                                        ? DeviceTypes.Android
-                                        : DeviceTypes.iOS
-                            };
-                        if (!DevicesComboBox.Items.Cast<object>().Any(i => (i as DeviceItem).DeviceAddress == deviceItem.DeviceAddress))
-                        {
-                            DevicesComboBox.Items.Add(deviceItem);
-                        }
-                        DevicesComboBox.IsEnabled = true;
-                        LogToResultsWindow("Found '{0}' on {1}", name, address);
-                    })));
-
             ResultTextBox.Navigated += (sender, args) =>
-                {
-                    var htmlDocument = ResultTextBox.Document as HTMLDocument;
-                    //var obj = htmlDocument.getElementById("wrapallthethings");
-                    _htmlHolder = htmlDocument.getElementById("wrapallthethings");
-                    _htmlWindow = htmlDocument.parentWindow;
-
-                    _udpDiscoveryClient.SendServerPing();
-                    var ticksPassed = 0;
-                    var dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
-                    dispatcherTimer.Tick += (s, a) =>
-                    {
-                        if (ticksPassed > 2)
-                        {
-                            dispatcherTimer.Stop();
-                            if (DevicesComboBox.Items.Count == 1) DevicesComboBox.SelectedIndex = 0;
-                        }
-                        _udpDiscoveryClient.SendServerPing();
-                        ticksPassed++;
-                    };
-                    dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
-                    dispatcherTimer.Start();
-                };
+            {
+                var htmlDocument = ResultTextBox.Document as HTMLDocument;
+                //var obj = htmlDocument.getElementById("wrapallthethings");
+                _htmlHolder = htmlDocument.getElementById("wrapallthethings");
+                _htmlWindow = htmlDocument.parentWindow;
+            };
             ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
             //await ResultTextBox.GetNavigatedEventAsync("Navigated");
         }
@@ -145,7 +103,8 @@ namespace ProtoPad_Client
 
             CodeEditor.PreviewKeyDown += (sender, args) =>
                 {
-                    if (args.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+                    //if (args.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+                    if (args.Key != Key.F5) return;
                     SendCodeButton_Click(null, null);
                     args.Handled = true;
                 };
@@ -161,12 +120,6 @@ namespace ProtoPad_Client
                 .ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
         }
 
-        private void FindAppsButton_Click(object sender, RoutedEventArgs e)
-        {
-            DevicesComboBox.Items.Clear();
-            _udpDiscoveryClient.SendServerPing();
-        }
-
         private void SendCodeButton_Click(object sender, RoutedEventArgs e)
         {
             if (_currentDevice == null)
@@ -179,21 +132,17 @@ namespace ProtoPad_Client
             var errorMessage = result.ErrorMessage;
             if (!String.IsNullOrWhiteSpace(errorMessage))
             {
-                if (errorMessage.StartsWith("___EXCEPTION_____At line: "))
+                if (errorMessage.StartsWith("___EXCEPTION_____At offset: "))
                 {
-                    var exceptionBody = errorMessage.Substring("___EXCEPTION_____At line: ".Length);
+                    var exceptionBody = errorMessage.Substring("___EXCEPTION_____At offset: ".Length);
                     var exceptionParts = exceptionBody.Split(new[] {"__"}, StringSplitOptions.None);
                     var codeOffset = int.Parse(exceptionParts[0]) - 1;
 
                     var position = CodeEditor.Document.CurrentSnapshot.OffsetToPosition(codeOffset);
 
-                    ShowLineError(position.Line, exceptionParts[1]);
+                    ShowLineError(position.Line+1, exceptionParts[1]);
                 }
-                else
-                {
-                    MessageBox.Show(errorMessage.Substring("___EXCEPTION___".Length));
-                }
-                _htmlHolder.innerHTML = errorMessage;
+                LogToResultsWindow(errorMessage);
             }
             else if (result.Results != null)
             {
@@ -239,10 +188,24 @@ namespace ProtoPad_Client
 
         private bool VisitNodesAndSelectStatementOffsets(IAstNode node, ICollection<int> statementOffsets)
         {
-            if (node.Value == "SimpleName: \"DumpHelpers\"") return false;
-            if (node is Statement && node.StartOffset.HasValue)
+            if (node.Value == "SimpleName: \"DumpHelpers\"" && node.Parent.Value == "ClassDeclaration")
             {
-                statementOffsets.Add(node.StartOffset.Value-1);
+                return false;
+            }
+
+            if (node is Statement && node.StartOffset.HasValue && node.StartOffset >= 0)
+            {
+                bool isDumpMethodStatement = false;
+                if (node.Parent != null && node.Parent.Parent != null)
+                {
+                    var methodNode = node.Parent.Parent as MethodDeclaration;
+                    if (methodNode != null)
+                    {
+                        if (methodNode.Name.Text == "____TrackStatementOffset") isDumpMethodStatement = true;
+                    }
+                }
+
+                if (!isDumpMethodStatement) statementOffsets.Add(node.StartOffset.Value);
             }
             return node.Children.All(childNode => VisitNodesAndSelectStatementOffsets(childNode, statementOffsets));
         }
@@ -250,10 +213,24 @@ namespace ProtoPad_Client
         private string GetSourceWithBreakPoints()
         {
             var parseData = CodeEditor.Document.ParseData as IDotNetParseData;
+            //parseData.Snapshot.PositionRangeToTextRange(new TextPositionRange(new TextPosition()))
+            
             var statementOffsets = new List<int>();
             VisitNodesAndSelectStatementOffsets(parseData.Ast, statementOffsets);
+
+
             var inserts = statementOffsets.ToDictionary(o => o, o => String.Format("____TrackStatementOffset({0});", o));
-            return CodeEditor.Document.CurrentSnapshot.Text.InsertAll(inserts);
+
+            var options = new TextChangeOptions { OffsetDelta = TextChangeOffsetDelta.SequentialOnly };
+            var change = parseData.Snapshot.CreateTextChange(TextChangeTypes.Custom, options);
+            foreach (var insert in inserts)
+            {
+                change.InsertText(insert.Key, insert.Value);
+            }
+            change.Apply();
+            return change.Snapshot.Text;
+
+            //return parseData.Snapshot.Text.InsertAll(inserts, parseData.Snapshot);
         }
 
         private string CompileSource(bool wrapWithDefaultCode, string specialNonEditorCode = null)
@@ -284,7 +261,7 @@ namespace ProtoPad_Client
 
         private void ShowLineError(int codeLineNumber, string errorMessage)
         {
-            if (codeLineNumber < 0 || codeLineNumber > CodeEditor.ActiveView.CurrentSnapshot.Lines.Count) codeLineNumber = 0;
+            if (codeLineNumber < 0 || codeLineNumber >= CodeEditor.ActiveView.CurrentSnapshot.Lines.Count) codeLineNumber = 0;
             var editorLine = CodeEditor.ActiveView.CurrentSnapshot.Lines[codeLineNumber];
             CodeEditor.ActiveView.Selection.StartOffset = editorLine.StartOffset;
             CodeEditor.ActiveView.Selection.SelectToLineEnd();
@@ -300,8 +277,8 @@ namespace ProtoPad_Client
             _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendGetMainXamarinAssemblyName(_currentDevice.DeviceAddress);
 
             _currentDevice.DeviceAddress = _currentDevice.DeviceAddress;
-            _htmlHolder.innerHTML = String.Format("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);
-            Title = String.Format("ProtoPad - {0}", DevicesComboBox.Text);
+            LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);
+            Title = String.Format("ProtoPad - {0}", _currentDevice.DeviceName);
 
             _projectAssembly.AssemblyReferences.Clear();
 
@@ -330,11 +307,6 @@ namespace ProtoPad_Client
             var folder = result.Results.FirstOrDefault();
             if (folder == null) return;
             StatusLabel.Content = folder.ResultValue.PrimitiveValue.ToString();
-        }
-
-        private void DevicesComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-        {
-            ConnectToApp(DevicesComboBox.SelectedItem as DeviceItem);
         }
 
         private void SetText()
@@ -385,102 +357,13 @@ namespace ProtoPad_Client
             (new AboutWindow()).Show();
         }
 
-        private void AddManualIPButton_Click(object sender, RoutedEventArgs e)
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-            var promptWindow = new PromptIPAddressWindow();
-            if (!promptWindow.ShowDialog().Value) return;
-            var address = String.Format("{0}:{1}", promptWindow.IPAddress, promptWindow.Port);
-            var deviceType = QuickConnect(address);
-            if (!deviceType.HasValue)
+            var connectWindow = new ConnectWindow();
+            if (connectWindow.ShowDialog().Value)
             {
-                MessageBox.Show(String.Format("Could not connect to {0}", address));
-                return;
+                ConnectToApp(connectWindow.SelectedDeviceItem);
             }
-            var deviceItem = new DeviceItem
-            {
-                DeviceAddress = address,
-                DeviceName = String.Format("{0} app on {1}", deviceType, address),
-                DeviceType = deviceType.Value
-            };
-            if (!DevicesComboBox.Items.Cast<object>().Any(i => (i as DeviceItem).DeviceAddress == deviceItem.DeviceAddress))
-            {
-                DevicesComboBox.Items.Add(deviceItem);
-            }
-            DevicesComboBox.IsEnabled = true;
-        }
-
-        private void ConfigureAndroidEmulatorButton_Click(object sender, RoutedEventArgs e)
-        {
-            var emulatorPortCandidates = FindEmulatorPortCandidates();
-            if (!emulatorPortCandidates.Any())
-            {
-                MessageBox.Show("No emulators found - are you sure the emulator is online?");
-                return;
-            }
-            var results = emulatorPortCandidates.ToDictionary(c => c, SetupPortForwardingOnAndroidEmulator);
-            var successResults = results.Where(r => r.Value.HasValue && r.Value.Value).Select(r => r.Key);
-            if (successResults.Any())
-            {
-                MessageBox.Show(String.Format("Emulator found at port {0}, and configured successfully! Hit 'Find servers' to auto-discover your running app on this/these emulator(s).", String.Join(", ", successResults)));
-                return;
-            }
-            var halfResults = results.Where(r => r.Value.HasValue && !r.Value.Value).Select(r => r.Key);
-            if (halfResults.Any())
-            {
-                MessageBox.Show(String.Format("Emulator found at port {0}, but it may have already been configured, or was not able to be configured successfully. Please retry auto-discovery.", String.Join(", ", halfResults)));
-                return;
-            }
-            var emptyResults = results.Where(r => !r.Value.HasValue).Select(r => r.Key);
-            MessageBox.Show(String.Format("Emulator found at port {0}, but it could not be telnet-connected to. Please retry auto-discovery.", String.Join(", ", emptyResults)));
-        }
-
-        /// <summary>
-        /// Tries to find and Telnet-connect to the (first) running Android Emulator (AVD)
-        /// And tries to set up port forwarding on it, so that the ProtoPad Http (command) and Udp (discovery) servers are accessible from your host machine.
-        /// </summary>
-        /// <returns>Whether the port forwarding setup was succesful (might fail if already set up or ports busy)</returns>
-        private static bool? SetupPortForwardingOnAndroidEmulator(int port = 5554)
-        {
-            var udpCommandResponse = "";
-            var tcpCommandResponse = "";
-            try
-            {
-                using (var tc = new TelnetConnection("localhost", port))
-                {
-                    var connectResponse = tc.Read();
-                    if (!connectResponse.Contains("Android Console")) return null;
-
-                    tc.WriteLine(String.Format("redir add udp:{0}:{1}", MulticastForwardedHostPort, UdpDiscoveryServer.UdpServerPort));
-                    udpCommandResponse = tc.Read();
-                    tc.WriteLine(String.Format("redir add tcp:{0}:{1}", HttpForwardedHostPort, 8080));
-                    tcpCommandResponse = tc.Read();
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine("Unexpected error during Android Emulator Telnet session: {0}", e.Message);
-                return null;
-            }
-
-            // response in case already set up:
-            // "KO: host port already active, use 'redir del' to remove first"
-
-            return udpCommandResponse.Contains("OK") && tcpCommandResponse.Contains("OK");
-        }
-
-        private static DeviceTypes? QuickConnect(string endpoint)
-        {
-            var appIdentifier = SimpleHttpServer.SendWhoAreYou(endpoint);
-            if (String.IsNullOrWhiteSpace(appIdentifier)) return null;
-            if (appIdentifier.Contains("Android")) return DeviceTypes.Android;
-            if (appIdentifier.Contains("iOS")) return DeviceTypes.iOS;
-            return null;
-        }
-
-        private static IEnumerable<int> FindEmulatorPortCandidates()
-        {
-            var tcpRows = ManagedIpHelper.GetExtendedTcpTable(true);
-            return (from tcpRow in tcpRows let process = Process.GetProcessById(tcpRow.ProcessId) where process != null where process.ProcessName.Contains("emulator-arm") select tcpRow.LocalEndPoint.Port).Distinct().ToList();
         }
     }
 }

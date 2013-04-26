@@ -7,13 +7,12 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Navigation;
+using ActiproSoftware.Text;
 
 namespace ProtoPad_Client
 {
     public static class EditorHelpers
     {
-        public const string SampleCode_Android_Program = @"(5).Dump();";
-
         public enum CodeType {Expression, Statements, Program}
 
         public static string GetFrameworkReferenceAssembliesDirectory()
@@ -76,26 +75,28 @@ namespace ProtoPad_Client
 
         public static string GetDefaultCode(CodeType codeType, MainWindow.DeviceTypes deviceType)
         {
+            var sampleStatements = deviceType == MainWindow.DeviceTypes.Android
+               ? Properties.Resources.SampleCodeAndroidProgram
+               : Properties.Resources.SampleCodeiOSProgram;
+            sampleStatements = sampleStatements.Replace("\n", "\n\t");
+
             switch (codeType)
             {
                 case CodeType.Program:
-                    var code = deviceType == MainWindow.DeviceTypes.Android
-                                   ? SampleCode_Android_Program
-                                   : Properties.Resources.SampleCodeiOSProgram;
-                    code = code.Replace("\n", "\n\t");
                     return @"void Main(" + GetDeviceSpecificMainParams(deviceType) + @")
 {
-    " + code + @"
+    " + sampleStatements + @"
 }
 
 // Define other methods and classes here";
                 default:
                 case CodeType.Expression:
-                case CodeType.Statements:
                     return "";
+                case CodeType.Statements:
+                    return sampleStatements;
             }
         }
-
+        /*
         public static string InsertAll(this string source, Dictionary<int, string> insertStrings)
         {
             if (!insertStrings.Any()) return source;
@@ -128,8 +129,37 @@ namespace ProtoPad_Client
             }
 
             return String.Join("", substrings);
+        }*/
+        public static string InsertAll(this string source, Dictionary<Tuple<int, int>, string> orderedPositions, ITextSnapshot snapshot)
+        {
+            var substrings = new List<string>();
+            foreach (var position in orderedPositions)
+            {
+                var substr = snapshot.GetSubstring(position.Key.Item1, position.Key.Item2);
+                substrings.Add(position.Value);
+                substrings.Add(substr);
+            }
+            /*for (var i = 0; i < orderedPositions.Count(); i++)
+            {
+                var position = orderedPositions.ElementAt(i).Key;
+                if (position > 0 && !substrings.Any())
+                {
+                    substrings.Add(source.Substring(0, position));
+                }
+                if (i < (orderedPositions.Count() - 1))
+                {
+                    substrings.Add(orderedPositions.ElementAt(i).Value);
+                    substrings.Add(source.Substring(position, orderedPositions.ElementAt(i + 1).Key - position));
+                }
+                else
+                {
+                    substrings.Add(orderedPositions.ElementAt(i).Value);
+                    string substr = source.Substring(position, source.Length - position);
+                    if (!String.IsNullOrWhiteSpace(substr)) substrings.Add(substr);
+                }
+            }*/
+            return String.Join("", substrings);
         }
-        
 
         public const string WrapText_IOS_Base = @"using MonoTouch.UIKit;
 using System;

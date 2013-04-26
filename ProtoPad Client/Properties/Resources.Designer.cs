@@ -84,6 +84,17 @@ namespace ProtoPad_Client.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to var list = new List&lt;int&gt;{5};
+        ///list[0].Dump();
+        ///list[1].Dump();.
+        /// </summary>
+        internal static string SampleCodeAndroidProgram {
+            get {
+                return ResourceManager.GetString("SampleCodeAndroidProgram", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to var nsUrl = new NSUrl(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
         ///var data = NSData.FromUrl(nsUrl);
         ///var image = new UIImage(data);

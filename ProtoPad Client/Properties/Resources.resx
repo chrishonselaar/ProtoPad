@@ -191,6 +191,11 @@
 &lt;/body&gt;
 &lt;/html&gt;</value>
   </data>
+  <data name="SampleCodeAndroidProgram" xml:space="preserve">
+    <value>var list = new List&lt;int&gt;{5};
+list[0].Dump();
+list[1].Dump();</value>
+  </data>
   <data name="SampleCodeiOSProgram" xml:space="preserve">
     <value>var nsUrl = new NSUrl("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
 var data = NSData.FromUrl(nsUrl);

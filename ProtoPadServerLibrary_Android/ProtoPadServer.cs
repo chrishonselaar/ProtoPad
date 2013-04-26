@@ -92,28 +92,28 @@ namespace ProtoPadServerLibrary_Android
 
         private void Response(byte[] responseBytes, EventWaitHandle remoteCommandDoneEvent, ref string response)
         {
-            //try
-            //{
+            try
+            {
                 var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _contextActivity);
                 var dumpValues = executeResponse.GetDumpValues();
                 if (dumpValues != null)
                 {
                     executeResponse.Results = dumpValues.Select(v => new ResultPair(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.GetMaxEnumerableItemCount()))).ToList();
                 }
-			var serializeResponse = new ExecuteResponseSerialize();
-			serializeResponse.Results = executeResponse.Results;
-			serializeResponse.ErrorMessage  =executeResponse.ErrorMessage;
-			//executeResponse.SetDumpValues (null);
-			response = JsonEncode(serializeResponse);
-            //}
-            //catch (Exception e)
-            //{
+				var serializeResponse = new ExecuteResponseSerialize();
+				serializeResponse.Results = executeResponse.Results;
+				serializeResponse.ErrorMessage  =executeResponse.ErrorMessage;
+				//executeResponse.SetDumpValues (null);
+				response = JsonEncode(serializeResponse);
+            }
+            catch (Exception e)
+            {
                 //Debug.WriteLine(e.Message);
-            //}
-            //finally
-            //{
+            }
+            finally
+            {
                 remoteCommandDoneEvent.Set();
-            //}
+            }
         }
 
         public static string JsonEncode(object value)
