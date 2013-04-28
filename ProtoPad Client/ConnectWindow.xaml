@@ -14,7 +14,7 @@
 
         <Button x:Name="ConnectButton" Content="Connect" HorizontalAlignment="Left" Margin="11,246,0,0" VerticalAlignment="Top" Width="75" Click="ConnectButton_Click" IsEnabled="False"/>
         <Button x:Name="RunLocalButton" Content="Run as local scratchpad" HorizontalAlignment="Left" Margin="163,246,0,0" VerticalAlignment="Top" Width="144" ToolTip="Use this to execute code locally instead of on a connected app. You can use this if you just need a quick code/run/inspect scratchpad." Click="RunLocalButton_Click"/>
-        <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Left" Margin="376,246,0,0" VerticalAlignment="Top" Width="75" IsCancel="True" IsDefault="True" Click="CloseButton_Click"/>
+        <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Left" Margin="376,246,0,0" VerticalAlignment="Top" Width="75" IsCancel="True" IsDefault="True"/>
 
 
     </Grid>

@@ -5,8 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Navigation;
 using ActiproSoftware.Text;
 
 namespace ProtoPad_Client
@@ -45,14 +43,43 @@ namespace ProtoPad_Client
             return new[] { mainMonotouchAssemblyPath, monoTouchSystemDllPath, monoTouchSystemCoreDllPath };
         }
 
+        public static string[] GetRegularDotNetBaseAssemblies()
+        {
+            var systemCore = Assembly.Load(new AssemblyName("System.Core")).Location;
+            var system = Assembly.Load(new AssemblyName("System")).Location;
+            return new[] { systemCore, system };
+        }
+
         public static string GetDeviceSpecificMainParams(MainWindow.DeviceTypes deviceType)
         {
-            return deviceType == MainWindow.DeviceTypes.Android ? "Activity activity, Android.Views.Window window" : "UIApplicationDelegate appDelegate, UIWindow window";
+            switch (deviceType)
+            {
+                case MainWindow.DeviceTypes.Android:
+                    return "Activity activity, Android.Views.Window window";
+                case MainWindow.DeviceTypes.iOS:
+                    return "UIApplicationDelegate appDelegate, UIWindow window";
+                default:
+                case MainWindow.DeviceTypes.Local:
+                    return "";
+            }
         }
 
         public static string GetWrapText(CodeType codeType, MainWindow.DeviceTypes deviceType)
         {
-            var wrapText = deviceType == MainWindow.DeviceTypes.Android ? WrapText_Android_Base : WrapText_IOS_Base;
+            string wrapText;
+            switch (deviceType)
+            {
+                case MainWindow.DeviceTypes.Android:
+                    wrapText = WrapText_Android_Base;
+                    break;
+                case MainWindow.DeviceTypes.iOS:
+                    wrapText = WrapText_IOS_Base;
+                    break;
+                default:
+                case MainWindow.DeviceTypes.Local:
+                    wrapText = WrapText_RegularDotNet_Base;
+                    break;
+            }
             switch (codeType)
             {
                 case CodeType.Expression:
@@ -75,9 +102,21 @@ namespace ProtoPad_Client
 
         public static string GetDefaultCode(CodeType codeType, MainWindow.DeviceTypes deviceType)
         {
-            var sampleStatements = deviceType == MainWindow.DeviceTypes.Android
-               ? Properties.Resources.SampleCodeAndroidProgram
-               : Properties.Resources.SampleCodeiOSProgram;
+            string sampleStatements;
+            switch (deviceType)
+            {
+                case MainWindow.DeviceTypes.Android:
+                    sampleStatements = Properties.Resources.SampleCodeAndroidProgram;
+                    break;
+                case MainWindow.DeviceTypes.iOS:
+                    sampleStatements = Properties.Resources.SampleCodeiOSProgram;
+                    break;
+                default:
+                case MainWindow.DeviceTypes.Local:
+                    sampleStatements = Properties.Resources.SampleCodeRegularProgram;
+                    break;
+            }
+
             sampleStatements = sampleStatements.Replace("\n", "\n\t");
 
             switch (codeType)
@@ -96,40 +135,7 @@ namespace ProtoPad_Client
                     return sampleStatements;
             }
         }
-        /*
-        public static string InsertAll(this string source, Dictionary<int, string> insertStrings)
-        {
-            if (!insertStrings.Any()) return source;
-            var orderedInsertStrings = insertStrings.OrderBy(s => s.Key);
-            var substrings = new List<string>();
 
-            var first = orderedInsertStrings.First();
-            if (first.Key > 0)
-            {
-                substrings.Add(source.Substring(0, first.Key));
-            }
-
-            var lastIndex = -1;
-            for (var i = 0; i < orderedInsertStrings.Count(); i++)
-            {
-                var insertString = orderedInsertStrings.ElementAt(i);
-                var start = insertString.Key;
-                if (start < 0 || start >= source.Length) continue;
-                var end = i < insertStrings.Count - 1 ? orderedInsertStrings.ElementAt(i + 1).Key : source.Length;
-                substrings.Add(source.Substring(start, 1));
-                substrings.Add(insertString.Value);
-                lastIndex = end;
-                substrings.Add(source.Substring(start + 1, end - (start + 1)));
-            }
-
-            if (lastIndex < source.Length)
-            {
-                if (lastIndex < 0) lastIndex = 0;
-                substrings.Add(source.Substring(lastIndex, source.Length - lastIndex));
-            }
-
-            return String.Join("", substrings);
-        }*/
         public static string InsertAll(this string source, Dictionary<Tuple<int, int>, string> orderedPositions, ITextSnapshot snapshot)
         {
             var substrings = new List<string>();
@@ -199,6 +205,28 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 using Android.OS;
+using System.Runtime.CompilerServices;
+	
+public class __MTDynamicCode
+{
+    public static int ___lastExecutedStatementOffset = 0;
+    public static void ____TrackStatementOffset(int offset)
+    {
+        ___lastExecutedStatementOffset = offset;
+    }
+    public static int ___maxEnumerableItemCount = 1000;
+    public static List<DumpHelpers.DumpObj> ___dumps = new List<DumpHelpers.DumpObj>();
+
+    __STATEMENTSHERE__    
+}";
+
+
+        public const string WrapText_RegularDotNet_Base = @"using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 	
 public class __MTDynamicCode

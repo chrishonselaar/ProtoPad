@@ -71,6 +71,7 @@
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Core" />
@@ -93,6 +94,7 @@
     <Compile Include="ConnectWindow.xaml.cs">
       <DependentUpon>ConnectWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ObjectDumper.cs" />
     <Compile Include="PromptIPAddressWindow.xaml.cs">
       <DependentUpon>PromptIPAddressWindow.xaml</DependentUpon>
     </Compile>

@@ -211,4 +211,7 @@ window.AddSubview(button1);
 image.Dump();
 window.Dump();</value>
   </data>
+  <data name="SampleCodeRegularProgram" xml:space="preserve">
+    <value>// Running locally - use the Connect button to start working with your mobile app!</value>
+  </data>
 </root>

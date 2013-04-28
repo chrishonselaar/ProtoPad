@@ -111,5 +111,14 @@ namespace ProtoPad_Client.Properties {
                 return ResourceManager.GetString("SampleCodeiOSProgram", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to // Running locally - use the Connect button to start working with your mobile app!.
+        /// </summary>
+        internal static string SampleCodeRegularProgram {
+            get {
+                return ResourceManager.GetString("SampleCodeRegularProgram", resourceCulture);
+            }
+        }
     }
 }

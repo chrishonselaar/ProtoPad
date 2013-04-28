@@ -1,10 +1,12 @@
 ﻿using System;
 using System.CodeDom.Compiler;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -58,8 +60,14 @@ namespace ProtoPad_Client
 
         public MainWindow()
         {
-            InitializeComponent();            
+            InitializeComponent();
 
+            _currentDevice = new DeviceItem
+                {
+                    DeviceAddress = "__LOCAL__",
+                    DeviceType = DeviceTypes.Local,
+                    DeviceName = "Local"
+                };
             InitializeEditor();
             InitializeResultWindow();
         }
@@ -77,7 +85,6 @@ namespace ProtoPad_Client
             ResultTextBox.Navigated += (sender, args) =>
             {
                 var htmlDocument = ResultTextBox.Document as HTMLDocument;
-                //var obj = htmlDocument.getElementById("wrapallthethings");
                 _htmlHolder = htmlDocument.getElementById("wrapallthethings");
                 _htmlWindow = htmlDocument.parentWindow;
             };
@@ -113,20 +120,25 @@ namespace ProtoPad_Client
         private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
         {
             _projectAssembly.AssemblyReferences.AddMsCorLib();
-            if (_currentDevice == null) return;
-            (_currentDevice.DeviceType == DeviceTypes.Android ? 
-                EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName) : 
-                EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName))
-                .ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
+            string[] assemblies;
+            switch (_currentDevice.DeviceType)
+            {
+                case DeviceTypes.Android:
+                    assemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName);
+                    break;
+                case DeviceTypes.iOS:
+                    assemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName);
+                    break;
+                default:
+                case DeviceTypes.Local:
+                    assemblies = EditorHelpers.GetRegularDotNetBaseAssemblies();
+                    break;
+            }
+            assemblies.ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
         }
 
         private void SendCodeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentDevice == null)
-            {
-                MessageBox.Show("Please connect to an app first!");
-                return;
-            }
             var result = SendCode(_currentDevice.DeviceAddress);
             if (result == null) return;
             var errorMessage = result.ErrorMessage;
@@ -160,15 +172,21 @@ namespace ProtoPad_Client
             }
             var dlg = new Microsoft.Win32.OpenFileDialog { DefaultExt = ".dll" };
 
-            if (_currentDevice.DeviceType == DeviceTypes.Android)
+            var frameworkReferenceAssembliesDirectory = EditorHelpers.GetFrameworkReferenceAssembliesDirectory();
+            switch (_currentDevice.DeviceType)
             {
-                dlg.Filter = "Xamarin.Android-compatible assembly (.dll)|*.dll";
-                dlg.InitialDirectory = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoAndroid\";
-            }
-            else
-            {
-                dlg.Filter = "Xamarin.iOS-compatible assembly (.dll)|*.dll";
-                dlg.InitialDirectory = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoTouch\v4.0\";
+                case DeviceTypes.Android:
+                    dlg.Filter = "Xamarin.Android-compatible assembly (.dll)|*.dll";
+                    dlg.InitialDirectory = Path.Combine(frameworkReferenceAssembliesDirectory, "MonoAndroid");
+                    break;
+                case DeviceTypes.iOS:
+                    dlg.Filter = "Xamarin.iOS-compatible assembly (.dll)|*.dll";
+                    dlg.InitialDirectory = Path.Combine(frameworkReferenceAssembliesDirectory, @"MonoTouch\v4.0");
+                    break;
+                case DeviceTypes.Local:
+                    dlg.Filter = ".Net assembly (.dll)|*.dll";
+                    dlg.InitialDirectory = Path.Combine(frameworkReferenceAssembliesDirectory, @".NETFramework");
+                    break;
             }
 
             var result = dlg.ShowDialog();
@@ -182,11 +200,15 @@ namespace ProtoPad_Client
         private ExecuteResponse SendCode(string url, bool wrapWithDefaultCode = true, string specialNonEditorCode = null)
         {
             var assemblyPath = CompileSource(wrapWithDefaultCode, specialNonEditorCode);
+            if (_currentDevice.DeviceType == DeviceTypes.Local)
+            {
+                return ExecuteLoadedAssemblyString(File.ReadAllBytes(assemblyPath));
+            }
             var responseString = String.IsNullOrWhiteSpace(assemblyPath) ? null : SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath)).Trim();
             return String.IsNullOrWhiteSpace(responseString) ? null : UtilityMethods.JsonDecode<ExecuteResponse>(responseString);
         }
 
-        private bool VisitNodesAndSelectStatementOffsets(IAstNode node, ICollection<int> statementOffsets)
+        private static bool VisitNodesAndSelectStatementOffsets(IAstNode node, ICollection<int> statementOffsets)
         {
             if (node.Value == "SimpleName: \"DumpHelpers\"" && node.Parent.Value == "ClassDeclaration")
             {
@@ -195,7 +217,7 @@ namespace ProtoPad_Client
 
             if (node is Statement && node.StartOffset.HasValue && node.StartOffset >= 0)
             {
-                bool isDumpMethodStatement = false;
+                var isDumpMethodStatement = false;
                 if (node.Parent != null && node.Parent.Parent != null)
                 {
                     var methodNode = node.Parent.Parent as MethodDeclaration;
@@ -238,9 +260,9 @@ namespace ProtoPad_Client
             var codeWithOffsets = (specialNonEditorCode ?? GetSourceWithBreakPoints()).Replace("void Main(", "public void Main(");
 
             var sourceCode = wrapWithDefaultCode ? String.Format("{0}{1}{2}", WrapHeader.Replace("void Main(", "public void Main("), codeWithOffsets, WrapFooter) : codeWithOffsets;
-            var provider_options = new Dictionary<string, string> {{"CompilerVersion", "v3.5"}};
-            var cpd = new CSharpCodeProvider(provider_options);
-            //var cpd = new CSharpCodeProvider();
+            //var provider_options = new Dictionary<string, string> {{"CompilerVersion", "v3.5"}};
+            //var cpd = new CSharpCodeProvider(provider_options);
+            var cpd = new CSharpCodeProvider();
             
             var compilerParameters = new CompilerParameters();
             compilerParameters.ReferencedAssemblies.AddRange(_referencedAssemblies.ToArray());
@@ -271,13 +293,20 @@ namespace ProtoPad_Client
 
         private void ConnectToApp(DeviceItem deviceItem)
         {
-            if (deviceItem == null) return;
             _currentDevice = deviceItem;
 
-            _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendGetMainXamarinAssemblyName(_currentDevice.DeviceAddress);
+            var isLocal = _currentDevice.DeviceType == DeviceTypes.Local;
 
-            _currentDevice.DeviceAddress = _currentDevice.DeviceAddress;
-            LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);
+            if (isLocal)
+            {
+                LogToResultsWindow("Running locally (regular .Net)");
+            }
+            else
+            {
+                _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendGetMainXamarinAssemblyName(_currentDevice.DeviceAddress);
+                LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);                
+            }
+
             Title = String.Format("ProtoPad - {0}", _currentDevice.DeviceName);
 
             _projectAssembly.AssemblyReferences.Clear();
@@ -295,7 +324,7 @@ namespace ProtoPad_Client
 
             StatusLabel.Content = "";
 
-            if (_currentDevice.DeviceType == DeviceTypes.Android) 
+            if (_currentDevice.DeviceType != DeviceTypes.iOS) 
             {
                 return; // todo: locate and provide Android Emulator file path if applicable
             }
@@ -311,15 +340,18 @@ namespace ProtoPad_Client
 
         private void SetText()
         {
-            if (_currentDevice == null) return;
             _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType, _currentDevice.DeviceType);
-            if (_currentDevice.DeviceType == DeviceTypes.Android)
+            switch (_currentDevice.DeviceType)
             {
-                EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
-            }
-            else
-            {
-                EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
+                case DeviceTypes.Android:
+                    EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
+                    break;
+                case DeviceTypes.iOS:
+                    EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
+                    break;
+                case DeviceTypes.Local:
+                    EditorHelpers.GetRegularDotNetBaseAssemblies().ToList().ForEach(a => _referencedAssemblies.Add(a));
+                    break;
             }
             CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType, _currentDevice.DeviceType));
             CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
@@ -344,7 +376,6 @@ namespace ProtoPad_Client
 
         private void ClearSimulatorWindowButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentDevice == null) return;
             var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Statements, _currentDevice.DeviceType);
             var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS
                                                        ? "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());"
@@ -364,6 +395,54 @@ namespace ProtoPad_Client
             {
                 ConnectToApp(connectWindow.SelectedDeviceItem);
             }
+        }
+
+        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes) // todo: provide special WPF controls result window
+        {
+            MethodInfo printMethod;
+
+            object loadedInstance;
+            try
+            {
+                // TODO: create new AppDomain for each loaded assembly, to prevent memory leakage
+                var loadedAssembly = AppDomain.CurrentDomain.Load(loadedAssemblyBytes);
+                var loadedType = loadedAssembly.GetType("__MTDynamicCode");
+                if (loadedType == null) return null;
+                loadedInstance = Activator.CreateInstance(loadedType);
+
+                printMethod = loadedInstance.GetType().GetMethod("Main");
+            }
+            catch (Exception e)
+            {
+                return new ExecuteResponse { ErrorMessage = e.Message };
+            }
+
+            var response = new ExecuteResponse();
+            try
+            {
+                printMethod.Invoke(loadedInstance, new object[] { }); // todo: provide special WPF controls result window
+                var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
+                response.SetDumpValues(dumpsRaw.Cast<object>().Select(GetDumpObjectFromObject).ToList());
+                response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
+            }
+            catch (Exception e)
+            {
+                var lineNumber = loadedInstance.GetType().GetField("___lastExecutedStatementOffset").GetValue(loadedInstance);
+                response.ErrorMessage = String.Format("___EXCEPTION_____At offset: {0}__{1}", lineNumber, e.InnerException.Message);
+            }
+
+            return response;
+        }
+
+        public static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
+        {
+            var objType = value.GetType();
+            var dumpObject = new DumpHelpers.DumpObj(Convert.ToString(objType.GetField("Description").GetValue(value)),
+                objType.GetField("Value").GetValue(value),
+                Convert.ToInt32(objType.GetField("Level").GetValue(value)),
+                Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
+            );
+            return dumpObject;
         }
     }
 }

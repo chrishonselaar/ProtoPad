@@ -8,30 +8,19 @@ using ServiceDiscovery;
 
 namespace ProtoPad_Client
 {
-    /// <summary>
-    /// Interaction logic for ConnectWindow.xaml
-    /// </summary>
-    public partial class ConnectWindow : Window
+    public partial class ConnectWindow
     {
         public MainWindow.DeviceItem SelectedDeviceItem = null;
-        private UdpDiscoveryClient _udpDiscoveryClient;
+        private readonly UdpDiscoveryClient _udpDiscoveryClient;
         public const int MulticastForwardedHostPort = 5356; // todo: auto-find available port
         public const int HttpForwardedHostPort = 18080; // todo: auto-find available port
+        private readonly System.Windows.Threading.DispatcherTimer _dispatcherTimer;
+        private int _ticksPassed;
 
         public ConnectWindow()
         {
             InitializeComponent();
-        }
 
-        private void FindAppsButton_Click(object sender, RoutedEventArgs e)
-        {
-            DevicesList.Items.Clear();
-            _udpDiscoveryClient.SendServerPing();
-            ConnectButton.IsEnabled = false;
-        }
-
-        private void SearchForRunningProtoPadServers()
-        {
             _udpDiscoveryClient = new UdpDiscoveryClient(
                 ready => { },
                 (name, address) => Dispatcher.Invoke((Action)(() =>
@@ -58,21 +47,32 @@ namespace ProtoPad_Client
                     //LogToResultsWindow("Found '{0}' on {1}", name, address);
                 })));
 
-            _udpDiscoveryClient.SendServerPing();
-            var ticksPassed = 0;
-            var dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
-            dispatcherTimer.Tick += (s, a) =>
+            _dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
+            _dispatcherTimer.Tick += (s, a) =>
             {
-                if (ticksPassed > 2)
+                if (_ticksPassed > 2)
                 {
-                    dispatcherTimer.Stop();
+                    _dispatcherTimer.Stop();
                     if (DevicesList.Items.Count == 1) DevicesList.SelectedIndex = 0;
                 }
                 _udpDiscoveryClient.SendServerPing();
-                ticksPassed++;
+                _ticksPassed++;
             };
-            dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
-            dispatcherTimer.Start();
+            _dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
+        }
+
+        private void FindAppsButton_Click(object sender, RoutedEventArgs e)
+        {
+            DevicesList.Items.Clear();
+            SearchForRunningProtoPadServers();
+            ConnectButton.IsEnabled = false;
+        }
+
+        private void SearchForRunningProtoPadServers()
+        {
+            _udpDiscoveryClient.SendServerPing();
+            _ticksPassed = 0;
+            _dispatcherTimer.Start();
         }
 
         private void AddManualIPButton_Click(object sender, RoutedEventArgs e)
@@ -99,7 +99,7 @@ namespace ProtoPad_Client
             DevicesList.IsEnabled = true;
         }
 
-        private static IEnumerable<int> FindEmulatorPortCandidates()
+        private static List<int> FindEmulatorPortCandidates()
         {
             var tcpRows = ManagedIpHelper.GetExtendedTcpTable(true);
             return (from tcpRow in tcpRows let process = Process.GetProcessById(tcpRow.ProcessId) where process != null where process.ProcessName.Contains("emulator-arm") select tcpRow.LocalEndPoint.Port).Distinct().ToList();
@@ -114,13 +114,13 @@ namespace ProtoPad_Client
                 return;
             }
             var results = emulatorPortCandidates.ToDictionary(c => c, SetupPortForwardingOnAndroidEmulator);
-            var successResults = results.Where(r => r.Value.HasValue && r.Value.Value).Select(r => r.Key);
+            var successResults = results.Where(r => r.Value.HasValue && r.Value.Value).Select(r => r.Key).ToList();
             if (successResults.Any())
             {
                 MessageBox.Show(String.Format("Emulator found at port {0}, and configured successfully! Hit 'Find servers' to auto-discover your running app on this/these emulator(s).", String.Join(", ", successResults)));
                 return;
             }
-            var halfResults = results.Where(r => r.Value.HasValue && !r.Value.Value).Select(r => r.Key);
+            var halfResults = results.Where(r => r.Value.HasValue && !r.Value.Value).Select(r => r.Key).ToList();
             if (halfResults.Any())
             {
                 MessageBox.Show(String.Format("Emulator found at port {0}, but it may have already been configured, or was not able to be configured successfully. Please retry auto-discovery.", String.Join(", ", halfResults)));
@@ -173,19 +173,21 @@ namespace ProtoPad_Client
             return null;
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-
+            SelectedDeviceItem = DevicesList.SelectedItem as MainWindow.DeviceItem;
+            Close();
         }
 
         private void RunLocalButton_Click(object sender, RoutedEventArgs e)
         {
-
+            SelectedDeviceItem = new MainWindow.DeviceItem
+            {
+                DeviceAddress = "__LOCAL__",
+                DeviceType = MainWindow.DeviceTypes.Local,
+                DeviceName = "Local"
+            };
+            Close();
         }
 
         private void DevicesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
