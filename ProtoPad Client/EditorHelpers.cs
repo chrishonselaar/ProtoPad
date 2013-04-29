@@ -136,37 +136,6 @@ namespace ProtoPad_Client
             }
         }
 
-        public static string InsertAll(this string source, Dictionary<Tuple<int, int>, string> orderedPositions, ITextSnapshot snapshot)
-        {
-            var substrings = new List<string>();
-            foreach (var position in orderedPositions)
-            {
-                var substr = snapshot.GetSubstring(position.Key.Item1, position.Key.Item2);
-                substrings.Add(position.Value);
-                substrings.Add(substr);
-            }
-            /*for (var i = 0; i < orderedPositions.Count(); i++)
-            {
-                var position = orderedPositions.ElementAt(i).Key;
-                if (position > 0 && !substrings.Any())
-                {
-                    substrings.Add(source.Substring(0, position));
-                }
-                if (i < (orderedPositions.Count() - 1))
-                {
-                    substrings.Add(orderedPositions.ElementAt(i).Value);
-                    substrings.Add(source.Substring(position, orderedPositions.ElementAt(i + 1).Key - position));
-                }
-                else
-                {
-                    substrings.Add(orderedPositions.ElementAt(i).Value);
-                    string substr = source.Substring(position, source.Length - position);
-                    if (!String.IsNullOrWhiteSpace(substr)) substrings.Add(substr);
-                }
-            }*/
-            return String.Join("", substrings);
-        }
-
         public const string WrapText_IOS_Base = @"using MonoTouch.UIKit;
 using System;
 using MonoTouch.Foundation;
@@ -199,11 +168,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Drawing;
+using System.Threading;
+using System.IO;
 using Android.App;
 using Android.Content;
+using Java.Net;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
+using Android.Graphics;
 using Android.OS;
 using System.Runtime.CompilerServices;
 	

@@ -84,9 +84,22 @@ namespace ProtoPad_Client.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to var list = new List&lt;int&gt;{5};
-        ///list[0].Dump();
-        ///list[1].Dump();.
+        ///   Looks up a localized string similar to var url = new URL(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
+        ///var connection = url.OpenConnection() as HttpURLConnection;
+        ///connection.DoInput = true;
+        ///Bitmap bitmap = null;
+        ///var t1 = new Thread(delegate()
+        ///{
+        ///	connection.Connect();
+        ///	bitmap = BitmapFactory.DecodeStream(connection.InputStream);
+        ///});
+        ///t1.Start();
+        ///t1.Join();
+        ///bitmap.Dump();
+        ///var iv = new ImageView(window.Context);
+        ///iv.SetImageBitmap(bitmap);
+        ///window.AddContentView(iv, new ViewGroup.LayoutParams(200,100));
+        ///var  [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SampleCodeAndroidProgram {
             get {

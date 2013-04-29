@@ -41,6 +41,7 @@ namespace ProtoPadServerLibrary_Android
 
         public static DumpValue AsImage(Bitmap image)
         {
+            
             byte[] dataBytes;
             using (var stream = new MemoryStream())
             {

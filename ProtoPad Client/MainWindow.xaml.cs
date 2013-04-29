@@ -223,7 +223,7 @@ namespace ProtoPad_Client
                 return false;
             }
 
-            if (node is Statement && node.StartOffset.HasValue && node.StartOffset >= 0)
+            if (node is Statement && !(node is BlockStatement) && node.StartOffset.HasValue && node.StartOffset >= 0)
             {
                 var isDumpMethodStatement = false;
                 if (node.Parent != null && node.Parent.Parent != null)
@@ -269,10 +269,9 @@ namespace ProtoPad_Client
             var codeWithOffsets = (specialNonEditorCode ?? GetSourceWithBreakPoints()).Replace("void Main(", "public void Main(");
 
             var sourceCode = wrapWithDefaultCode ? String.Format("{0}{1}{2}", WrapHeader.Replace("void Main(", "public void Main("), codeWithOffsets, WrapFooter) : codeWithOffsets;
-            //var provider_options = new Dictionary<string, string> {{"CompilerVersion", "v3.5"}};
-            //var cpd = new CSharpCodeProvider(provider_options);
-            var cpd = new CSharpCodeProvider();
-            
+            var providerOptions_v35 = new Dictionary<string, string> {{"CompilerVersion", "v3.5"}};
+            var cpd = (_currentDevice.DeviceType == DeviceTypes.Android) ? new CSharpCodeProvider(providerOptions_v35) : new CSharpCodeProvider();
+
             var compilerParameters = new CompilerParameters();
             compilerParameters.ReferencedAssemblies.AddRange(_referencedAssemblies.ToArray());
             
@@ -306,6 +305,8 @@ namespace ProtoPad_Client
             _currentDevice = deviceItem;
 
             var isLocal = _currentDevice.DeviceType == DeviceTypes.Local;
+
+            ClearSimulatorWindowButton.IsEnabled = !isLocal;
 
             if (isLocal)
             {
@@ -391,7 +392,14 @@ namespace ProtoPad_Client
             var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Statements, _currentDevice.DeviceType);
             var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS
                                                        ? "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());"
-                                                       : ""); //todo: Android
+                                                       : @"var viewGroup = window.DecorView as ViewGroup;
+var layout = viewGroup.GetChildAt(0) as LinearLayout;
+var frame = layout.GetChildAt(1) as FrameLayout;
+var childCount = frame.ChildCount;
+for (int i = 0; i < childCount; i++)
+{
+	frame.RemoveViewAt(0);
+}"); //todo: Android
             SendCode(_currentDevice.DeviceAddress, false, clearCode);            
         }
 
@@ -403,7 +411,8 @@ namespace ProtoPad_Client
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             var connectWindow = new ConnectWindow();
-            if (connectWindow.ShowDialog().Value)
+            var result = connectWindow.ShowDialog().Value;
+            if (result)
             {
                 ConnectToApp(connectWindow.SelectedDeviceItem);
             }

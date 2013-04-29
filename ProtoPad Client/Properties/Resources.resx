@@ -192,9 +192,29 @@
 &lt;/html&gt;</value>
   </data>
   <data name="SampleCodeAndroidProgram" xml:space="preserve">
-    <value>var list = new List&lt;int&gt;{5};
-list[0].Dump();
-list[1].Dump();</value>
+    <value>var url = new URL("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
+var connection = url.OpenConnection() as HttpURLConnection;
+connection.DoInput = true;
+Bitmap bitmap = null;
+var t1 = new Thread(delegate()
+{
+	connection.Connect();
+	bitmap = BitmapFactory.DecodeStream(connection.InputStream);
+});
+t1.Start();
+t1.Join();
+bitmap.Dump();
+var iv = new ImageView(window.Context);
+iv.SetImageBitmap(bitmap);
+window.AddContentView(iv, new ViewGroup.LayoutParams(200,100));
+var imageFilePath = System.IO.Path.Combine(Android.OS.Environment.ExternalStorageDirectory.AbsolutePath,"Nepal.jpg");
+using (var fileStream = File.OpenWrite(imageFilePath))
+{
+    bitmap.Compress(Bitmap.CompressFormat.Jpeg, 60, fileStream);
+}
+var button = new Button(window.Context);
+button.Text = "bla";
+window.AddContentView(button, new ViewGroup.LayoutParams(200,100));</value>
   </data>
   <data name="SampleCodeiOSProgram" xml:space="preserve">
     <value>var nsUrl = new NSUrl("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");

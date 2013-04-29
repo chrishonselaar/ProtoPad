@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -29,11 +28,11 @@ namespace ProtoPadServerLibrary_Android
         private readonly WifiManager.MulticastLock _mcLock;
 
         /// <summary>
-        /// Starts listening for ProtoPad clients, and allows them to connect and access the View you pass in
+        /// Starts listening for ProtoPad clients, and allows them to connect and access the Activity you pass in
         /// Make sure to enable ACCESS_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE permissions in your app manifest, for autodiscovery to work - as well as any other permissions you yourself may need of course!
         /// WARNING: do not dispose until you are done listening for ProtoPad client events. Usually you will want to dispose only upon exiting the app.
         /// </summary>
-        /// <param name="window">Supply your main application view here. This will be made scriptable from the ProtoPad Client.</param>
+        /// <param name="activity">Supply your main application Activity here. This will be made scriptable from the ProtoPad Client.</param>
         public static ProtoPadServer Create(Activity activity, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
             return new ProtoPadServer(activity, overrideListeningPort, overrideBroadcastedAppName);
@@ -166,7 +165,7 @@ namespace ProtoPadServerLibrary_Android
             {
                 return new ExecuteResponse { ErrorMessage = e.Message };
             }
-
+            
             var response = new ExecuteResponse();
             try
             {

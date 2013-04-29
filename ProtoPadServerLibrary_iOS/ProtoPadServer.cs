@@ -26,11 +26,10 @@ namespace ProtoPadServerLibrary_iOS
         private readonly UdpDiscoveryServer _udpServer;
 
         /// <summary>
-        /// Starts listening for ProtoPad clients, and allows them to connect and access the UIWindow you pass in
-        /// Add the following values to your Info.plist if you want to enable iTunes access to files
-        /// <key>UIFileSharingEnabled</key>
-        /// <string>YES</string>
+        /// Starts listening for ProtoPad clients, and allows them to connect and access the UIApplicationDelegate and UIWindow you pass in
+        /// WARNING: do not dispose until you are done listening for ProtoPad client events. Usually you will want to dispose only upon exiting the app.
         /// </summary>
+        /// <param name="appDelegate">Supply your main application delegate here. This will be made scriptable from the ProtoPad Client.</param>
         /// <param name="window">Supply your main application window here. This will be made scriptable from the ProtoPad Client.</param>
         public static ProtoPadServer Create(UIApplicationDelegate appDelegate, UIWindow window, int? overrideListeningPort = null, string overrideBroadcastedAppName = null)
         {
@@ -121,7 +120,7 @@ namespace ProtoPadServerLibrary_iOS
             {
                 printMethod.Invoke(loadedInstance, new object[] { appDelegate, window });
                 var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
-                response.SetDumpValues(dumpsRaw.Cast<object>().Select(o=>GetDumpObjectFromObject).ToList());
+                response.SetDumpValues(dumpsRaw.Cast<object>().Select(GetDumpObjectFromObject).ToList());
                 response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
             }
             catch (Exception e)
@@ -136,14 +135,10 @@ namespace ProtoPadServerLibrary_iOS
         public static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
         {                
             var objType = value.GetType();
-            var dumpObject = new DumpHelpers.DumpObj
-                {
-                    Description = Convert.ToString(objType.GetField("Description").GetValue(value)),
-                    Value = objType.GetField("Value").GetValue(value),
-                    Level = Convert.ToInt32(objType.GetField("Level").GetValue(value)),
-                    ToDataGrid = Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
-                };
-            return dumpObject;
+            return new DumpHelpers.DumpObj(Convert.ToString(objType.GetField("Description").GetValue(value)),
+                    objType.GetField("Value").GetValue(value),
+                    Convert.ToInt32(objType.GetField("Level").GetValue(value)),
+                    Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value)));
         }
 
         public void Dispose()

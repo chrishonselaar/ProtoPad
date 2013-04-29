@@ -59,9 +59,16 @@ namespace ProtoPad_Client
                 _ticksPassed++;
             };
             _dispatcherTimer.Interval = TimeSpan.FromMilliseconds(200);
+
+            FindApps();
         }
 
         private void FindAppsButton_Click(object sender, RoutedEventArgs e)
+        {
+            FindApps();
+        }
+
+        private void FindApps()
         {
             DevicesList.Items.Clear();
             SearchForRunningProtoPadServers();
@@ -176,6 +183,7 @@ namespace ProtoPad_Client
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             SelectedDeviceItem = DevicesList.SelectedItem as MainWindow.DeviceItem;
+            DialogResult = true;
             Close();
         }
 
@@ -187,6 +195,7 @@ namespace ProtoPad_Client
                 DeviceType = MainWindow.DeviceTypes.Local,
                 DeviceName = "Local"
             };
+            DialogResult = true;
             Close();
         }
 
