@@ -1,18 +1,66 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Text.RegularExpressions;
-using ActiproSoftware.Text;
+using ServiceDiscovery;
 
 namespace ProtoPad_Client
 {
     public static class EditorHelpers
     {
         public enum CodeType {Expression, Statements, Program}
+
+        public static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes) // todo: provide special WPF controls result window
+        {
+            MethodInfo printMethod;
+
+            object loadedInstance;
+            try
+            {
+                // TODO: create new AppDomain for each loaded assembly, to prevent memory leakage
+                var loadedAssembly = AppDomain.CurrentDomain.Load(loadedAssemblyBytes);
+                var loadedType = loadedAssembly.GetType("__MTDynamicCode");
+                if (loadedType == null) return null;
+                loadedInstance = Activator.CreateInstance(loadedType);
+
+                printMethod = loadedInstance.GetType().GetMethod("Main");
+            }
+            catch (Exception e)
+            {
+                return new ExecuteResponse { ErrorMessage = e.Message };
+            }
+
+            var response = new ExecuteResponse();
+            try
+            {
+                printMethod.Invoke(loadedInstance, new object[] { }); // todo: provide special WPF controls result window
+                var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
+                response.SetDumpValues(dumpsRaw.Cast<object>().Select(GetDumpObjectFromObject).ToList());
+                response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
+            }
+            catch (Exception e)
+            {
+                var lineNumber = loadedInstance.GetType().GetField("___lastExecutedStatementOffset").GetValue(loadedInstance);
+                response.ErrorMessage = String.Format("___EXCEPTION_____At offset: {0}__{1}", lineNumber, e.InnerException.Message);
+            }
+
+            return response;
+        }
+
+        private static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
+        {
+            var objType = value.GetType();
+            var dumpObject = new DumpHelpers.DumpObj(Convert.ToString(objType.GetField("Description").GetValue(value)),
+                objType.GetField("Value").GetValue(value),
+                Convert.ToInt32(objType.GetField("Level").GetValue(value)),
+                Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
+            );
+            return dumpObject;
+        }
 
         public static string GetFrameworkReferenceAssembliesDirectory()
         {
@@ -67,6 +115,8 @@ namespace ProtoPad_Client
                     return "";
             }
         }
+
+        public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
 
         public static string GetWrapText(CodeType codeType, MainWindow.DeviceTypes deviceType)
         {
@@ -138,6 +188,16 @@ namespace ProtoPad_Client
                     return sampleStatements;
             }
         }
+
+        public const string ClearWindowStatements_iOS = "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());";
+        public const string ClearWindowStatements_Android = @"var viewGroup = window.DecorView as ViewGroup;
+var layout = viewGroup.GetChildAt(0) as LinearLayout;
+var frame = layout.GetChildAt(1) as FrameLayout;
+var childCount = frame.ChildCount;
+for (int i = 0; i < childCount; i++)
+{
+	frame.RemoveViewAt(0);
+}";
 
         public const string WrapText_IOS_Base = @"using MonoTouch.UIKit;
 using System;

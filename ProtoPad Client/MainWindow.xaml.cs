@@ -27,8 +27,6 @@ namespace ProtoPad_Client
 {    
     public partial class MainWindow
     {
-        public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
-
         private IHTMLElement _htmlHolder;
         private IHTMLWindow2 _htmlWindow;
         private string _currentWrapText;
@@ -37,17 +35,18 @@ namespace ProtoPad_Client
         private List<string> _referencedAssemblies = new List<string>();
         private string _msCorLib = null;
 
+        private EditorHelpers.CodeType _currentCodeType = EditorHelpers.CodeType.Statements;
+        private DeviceItem _currentDevice;
+
         private string WrapHeader
         {
-            get { return _currentWrapText.Split(new[] { CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[0]; }
+            get { return _currentWrapText.Split(new[] { EditorHelpers.CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[0]; }
         }
         private string WrapFooter
         {
-            get { return _currentWrapText.Split(new[] { CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[1]; }
+            get { return _currentWrapText.Split(new[] { EditorHelpers.CodeTemplateStatementsPlaceHolder }, StringSplitOptions.None)[1]; }
         }
 
-        private EditorHelpers.CodeType _currentCodeType = EditorHelpers.CodeType.Statements;
-        private DeviceItem _currentDevice;
 
         public enum DeviceTypes {Android, iOS, Local}
 
@@ -69,80 +68,13 @@ namespace ProtoPad_Client
                 DeviceType = DeviceTypes.Local,
                 DeviceName = "Local"
             };
+
             SetText();
             InitializeEditor();
             InitializeResultWindow();
         }
 
-        private void LogToResultsWindow(string message, params object[] stringFormatArguments)
-        {
-            if (_htmlHolder == null) return;
-            var formattedMessage = String.Format(message, stringFormatArguments);
-            Debug.WriteLine(formattedMessage);
-            _htmlHolder.innerHTML = formattedMessage;
-        }
-
-        private void InitializeResultWindow()
-        {
-            ResultTextBox.Navigated += (sender, args) =>
-            {
-                var htmlDocument = ResultTextBox.Document as HTMLDocument;
-                _htmlHolder = htmlDocument.getElementById("wrapallthethings");
-                _htmlWindow = htmlDocument.parentWindow;
-            };
-            ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
-            //await ResultTextBox.GetNavigatedEventAsync("Navigated");
-        }
-
-        private void InitializeEditor()
-        {
-            // Initialize the project assembly (enables support for automated IntelliPrompt features)
-            _projectAssembly = new CSharpProjectAssembly("ProtoPad Client");
-            var assemblyLoader = new BackgroundWorker();
-            assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
-            assemblyLoader.RunWorkerAsync();
-
-            // Load the .NET Languages Add-on C# language and register the project assembly on it
-            var language = new CSharpSyntaxLanguage();
-            language.RegisterProjectAssembly(_projectAssembly);
-
-            CodeEditor.Document.Language = language;
-
-            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
-
-            CodeEditor.PreviewKeyDown += (sender, args) =>
-                {
-                    //if (args.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
-                    if (args.Key != Key.F5) return;
-                    SendCodeButton_Click(null, null);
-                    args.Handled = true;
-                };
-        }
-
-        private void UpdateAssemblyReferences()
-        {
-            switch (_currentDevice.DeviceType)
-            {
-                case DeviceTypes.Android:
-                    _referencedAssemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
-                    break;
-                case DeviceTypes.iOS:
-                    _referencedAssemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
-                    break;
-                default:
-                case DeviceTypes.Local:
-                    _msCorLib = null;
-                    _referencedAssemblies = EditorHelpers.GetRegularDotNetBaseAssemblies();
-                    break;
-            }
-        }
-
-        private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
-        {
-            _projectAssembly.AssemblyReferences.AddMsCorLib();
-            UpdateAssemblyReferences();
-            _referencedAssemblies.ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
-        }
+        #region Event handlers
 
         private void SendCodeButton_Click(object sender, RoutedEventArgs e)
         {
@@ -204,13 +136,55 @@ namespace ProtoPad_Client
             SimpleHttpServer.SendPostRequest(_currentDevice.DeviceAddress, File.ReadAllBytes(assemblyPath));
         }
 
+        private void CodeTypeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            switch (CodeTypeComboBox.SelectedValue.ToString())
+            {
+                case "C# Expression":
+                    _currentCodeType = EditorHelpers.CodeType.Expression;
+                    break;
+                case "C# Statements":
+                    _currentCodeType = EditorHelpers.CodeType.Statements;
+                    break;
+                case "C# Program":
+                    _currentCodeType = EditorHelpers.CodeType.Program;
+                    break;
+            }
+            SetText();
+        }
+
+        private void ClearSimulatorWindowButton_Click(object sender, RoutedEventArgs e)
+        {
+            var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Statements, _currentDevice.DeviceType);
+            var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS ? EditorHelpers.ClearWindowStatements_iOS : EditorHelpers.ClearWindowStatements_Android);
+            SendCode(_currentDevice.DeviceAddress, false, clearCode);            
+        }
+
+        private void AboutHelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            (new AboutWindow()).Show();
+        }
+
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            var connectWindow = new ConnectWindow();
+            var result = connectWindow.ShowDialog().Value;
+            if (result)
+            {
+                ConnectToApp(connectWindow.SelectedDeviceItem);
+            }
+        }
+
+        #endregion
+
+
         private ExecuteResponse SendCode(string url, bool wrapWithDefaultCode = true, string specialNonEditorCode = null)
         {
             var assemblyPath = CompileSource(wrapWithDefaultCode, specialNonEditorCode);
             if (String.IsNullOrWhiteSpace(assemblyPath)) return null;
             if (_currentDevice.DeviceType == DeviceTypes.Local)
             {
-                var executeResponse = ExecuteLoadedAssemblyString(File.ReadAllBytes(assemblyPath));
+                var executeResponse = EditorHelpers.ExecuteLoadedAssemblyString(File.ReadAllBytes(assemblyPath));
                 var dumpValues = executeResponse.GetDumpValues();
                 if (dumpValues != null)
                 {
@@ -222,6 +196,11 @@ namespace ProtoPad_Client
             return String.IsNullOrWhiteSpace(responseString) ? null : UtilityMethods.JsonDecode<ExecuteResponse>(responseString);
         }
 
+        /// <summary>
+        /// Get text offsets for all regular statements in the code.
+        /// These will be used to insert special 'offset registration' statements
+        /// Offset registrations are used to catch the location where runtime errors occur
+        /// </summary>
         private static bool VisitNodesAndSelectStatementOffsets(IAstNode node, ICollection<int> statementOffsets)
         {
             if (node.Value == "SimpleName: \"DumpHelpers\"" && node.Parent.Value == "ClassDeclaration")
@@ -246,13 +225,12 @@ namespace ProtoPad_Client
             return node.Children.All(childNode => VisitNodesAndSelectStatementOffsets(childNode, statementOffsets));
         }
 
-        private string GetSourceWithBreakPoints()
+        private string GetSourceWithOffsetRegistrationStatements()
         {
             var parseData = CodeEditor.Document.ParseData as IDotNetParseData;
-            
+
             var statementOffsets = new List<int>();
             VisitNodesAndSelectStatementOffsets(parseData.Ast, statementOffsets);
-
 
             var inserts = statementOffsets.ToDictionary(o => o, o => String.Format("____TrackStatementOffset({0});", o));
 
@@ -271,7 +249,7 @@ namespace ProtoPad_Client
 
         private string CompileSource(bool wrapWithDefaultCode, string specialNonEditorCode = null)
         {
-            var codeWithOffsets = (specialNonEditorCode ?? GetSourceWithBreakPoints()).Replace("void Main(", "public void Main(");
+            var codeWithOffsets = (specialNonEditorCode ?? GetSourceWithOffsetRegistrationStatements()).Replace("void Main(", "public void Main(");
 
             var sourceCode = wrapWithDefaultCode ? String.Format("{0}{1}{2}", WrapHeader.Replace("void Main(", "public void Main("), codeWithOffsets, WrapFooter) : codeWithOffsets;
 
@@ -282,7 +260,7 @@ namespace ProtoPad_Client
 
             if (!useRegularMsCorLib) compilerParameters.ReferencedAssemblies.Add(_msCorLib);
             compilerParameters.ReferencedAssemblies.AddRange(_referencedAssemblies.ToArray());
-            
+
             compilerParameters.GenerateExecutable = false;
             var compileResults = cpd.CompileAssemblyFromSource(compilerParameters, sourceCode);
             CodeEditor.Document.IndicatorManager.Clear<ErrorIndicatorTagger, ErrorIndicatorTag>();
@@ -306,7 +284,7 @@ namespace ProtoPad_Client
             CodeEditor.ActiveView.Selection.SelectToLineEnd();
             var tag = new ErrorIndicatorTag { ContentProvider = new PlainTextContentProvider(errorMessage) };
             CodeEditor.Document.IndicatorManager.Add<ErrorIndicatorTagger, ErrorIndicatorTag>(CodeEditor.ActiveView.Selection.SnapshotRange, tag);
-        }        
+        }
 
         private void ConnectToApp(DeviceItem deviceItem)
         {
@@ -323,7 +301,7 @@ namespace ProtoPad_Client
             else
             {
                 _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendGetMainXamarinAssemblyName(_currentDevice.DeviceAddress);
-                LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);                
+                LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);
             }
 
             Title = String.Format("ProtoPad - {0}", _currentDevice.DeviceName);
@@ -343,7 +321,7 @@ namespace ProtoPad_Client
 
             StatusLabel.Content = "";
 
-            if (_currentDevice.DeviceType != DeviceTypes.iOS) 
+            if (_currentDevice.DeviceType != DeviceTypes.iOS)
             {
                 return; // todo: locate and provide Android Emulator file path if applicable
             }
@@ -367,100 +345,71 @@ namespace ProtoPad_Client
             CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
         }
 
-        private void CodeTypeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void LogToResultsWindow(string message, params object[] stringFormatArguments)
         {
-            switch (CodeTypeComboBox.SelectedValue.ToString())
+            if (_htmlHolder == null) return;
+            var formattedMessage = String.Format(message, stringFormatArguments);
+            _htmlHolder.innerHTML = formattedMessage;
+        }
+
+        private void InitializeResultWindow()
+        {
+            ResultTextBox.Navigated += (sender, args) =>
             {
-                case "C# Expression":
-                    _currentCodeType = EditorHelpers.CodeType.Expression;
+                var htmlDocument = ResultTextBox.Document as HTMLDocument;
+                _htmlHolder = htmlDocument.getElementById("wrapallthethings");
+                _htmlWindow = htmlDocument.parentWindow;
+            };
+            ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
+        }
+
+        private void InitializeEditor()
+        {
+            // Initialize the project assembly (enables support for automated IntelliPrompt features)
+            _projectAssembly = new CSharpProjectAssembly("ProtoPad Client");
+            var assemblyLoader = new BackgroundWorker();
+            assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
+            assemblyLoader.RunWorkerAsync();
+
+            // Load the .NET Languages Add-on C# language and register the project assembly on it
+            var language = new CSharpSyntaxLanguage();
+            language.RegisterProjectAssembly(_projectAssembly);
+
+            CodeEditor.Document.Language = language;
+
+            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
+
+            CodeEditor.PreviewKeyDown += (sender, args) =>
+            {
+                if (args.Key != Key.F5) return;
+                SendCodeButton_Click(null, null);
+                args.Handled = true;
+            };
+        }
+
+        private void UpdateAssemblyReferences()
+        {
+            switch (_currentDevice.DeviceType)
+            {
+                case DeviceTypes.Android:
+                    _referencedAssemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
                     break;
-                case "C# Statements":
-                    _currentCodeType = EditorHelpers.CodeType.Statements;
+                case DeviceTypes.iOS:
+                    _referencedAssemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
                     break;
-                case "C# Program":
-                    _currentCodeType = EditorHelpers.CodeType.Program;
+                default:
+                case DeviceTypes.Local:
+                    _msCorLib = null;
+                    _referencedAssemblies = EditorHelpers.GetRegularDotNetBaseAssemblies();
                     break;
             }
-            SetText();
         }
 
-        private void ClearSimulatorWindowButton_Click(object sender, RoutedEventArgs e)
+        private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
         {
-            var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Statements, _currentDevice.DeviceType);
-            var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS
-                                                       ? "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());"
-                                                       : @"var viewGroup = window.DecorView as ViewGroup;
-var layout = viewGroup.GetChildAt(0) as LinearLayout;
-var frame = layout.GetChildAt(1) as FrameLayout;
-var childCount = frame.ChildCount;
-for (int i = 0; i < childCount; i++)
-{
-	frame.RemoveViewAt(0);
-}"); //todo: Android
-            SendCode(_currentDevice.DeviceAddress, false, clearCode);            
-        }
-
-        private void AboutHelpButton_Click(object sender, RoutedEventArgs e)
-        {
-            (new AboutWindow()).Show();
-        }
-
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
-        {
-            var connectWindow = new ConnectWindow();
-            var result = connectWindow.ShowDialog().Value;
-            if (result)
-            {
-                ConnectToApp(connectWindow.SelectedDeviceItem);
-            }
-        }
-
-        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes) // todo: provide special WPF controls result window
-        {
-            MethodInfo printMethod;
-
-            object loadedInstance;
-            try
-            {
-                // TODO: create new AppDomain for each loaded assembly, to prevent memory leakage
-                var loadedAssembly = AppDomain.CurrentDomain.Load(loadedAssemblyBytes);
-                var loadedType = loadedAssembly.GetType("__MTDynamicCode");
-                if (loadedType == null) return null;
-                loadedInstance = Activator.CreateInstance(loadedType);
-
-                printMethod = loadedInstance.GetType().GetMethod("Main");
-            }
-            catch (Exception e)
-            {
-                return new ExecuteResponse { ErrorMessage = e.Message };
-            }
-
-            var response = new ExecuteResponse();
-            try
-            {
-                printMethod.Invoke(loadedInstance, new object[] { }); // todo: provide special WPF controls result window
-                var dumpsRaw = loadedInstance.GetType().GetField("___dumps").GetValue(loadedInstance) as IEnumerable;
-                response.SetDumpValues(dumpsRaw.Cast<object>().Select(GetDumpObjectFromObject).ToList());
-                response.SetMaxEnumerableItemCount(Convert.ToInt32(loadedInstance.GetType().GetField("___maxEnumerableItemCount").GetValue(loadedInstance)));
-            }
-            catch (Exception e)
-            {
-                var lineNumber = loadedInstance.GetType().GetField("___lastExecutedStatementOffset").GetValue(loadedInstance);
-                response.ErrorMessage = String.Format("___EXCEPTION_____At offset: {0}__{1}", lineNumber, e.InnerException.Message);
-            }
-
-            return response;
-        }
-
-        public static DumpHelpers.DumpObj GetDumpObjectFromObject(object value)
-        {
-            var objType = value.GetType();
-            var dumpObject = new DumpHelpers.DumpObj(Convert.ToString(objType.GetField("Description").GetValue(value)),
-                objType.GetField("Value").GetValue(value),
-                Convert.ToInt32(objType.GetField("Level").GetValue(value)),
-                Convert.ToBoolean(objType.GetField("ToDataGrid").GetValue(value))
-            );
-            return dumpObject;
+            _projectAssembly.AssemblyReferences.AddMsCorLib();
+            UpdateAssemblyReferences();
+            _referencedAssemblies.ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
         }
     }
 }
