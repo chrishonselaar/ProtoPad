@@ -224,6 +224,7 @@ var button = new Button(window.Context);
 button.Text = "Test";
 window.AddContentView(button, new ViewGroup.LayoutParams(200,100));
 button.SetY(200);
+button.Dump(1);
 */</value>
   </data>
   <data name="SampleCodeiOSProgram" xml:space="preserve">

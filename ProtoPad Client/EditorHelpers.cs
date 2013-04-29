@@ -20,35 +20,38 @@ namespace ProtoPad_Client
             return Path.Combine(programFilesx86Dir, @"Reference Assemblies\Microsoft\Framework");
         }
 
-        public static string[] GetXamarinAndroidBaseAssemblies(string mainMonodroidAssemblyName)
+        public static List<String> GetXamarinAndroidBaseAssemblies(string mainMonodroidAssemblyName, out string msCorLibPath)
         {
-            if (String.IsNullOrWhiteSpace(mainMonodroidAssemblyName)) return new string[]{};
-            var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "Mono.Android.dll", SearchOption.AllDirectories);
+            msCorLibPath = null;
+            if (String.IsNullOrWhiteSpace(mainMonodroidAssemblyName)) return null;
+            //var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "Mono.Android.dll", SearchOption.AllDirectories);
             //var mainMonodroidAssemblyPath = fileNames.First(f => Assembly.LoadFrom(f). .FullName == mainMonodroidAssemblyName);
             const string mainMonodroidAssemblyPath = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoAndroid\v4.0\Mono.Android.dll";
             var monoDroidAssembliesParentPath = Directory.GetParent(mainMonodroidAssemblyPath).Parent.FullName;
             var androidSystemDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
-            //var androidMsCorDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
+            msCorLibPath = Directory.GetFiles(monoDroidAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
             var androidSystemCoreDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "System.Core.dll", SearchOption.AllDirectories).First();
-            return new[] { androidSystemDllPath, androidSystemCoreDllPath, /*androidMsCorDllPath, */mainMonodroidAssemblyPath };
+            return new List<string> { androidSystemDllPath, androidSystemCoreDllPath, mainMonodroidAssemblyPath };
         }
 
-        public static string[] GetXamariniOSBaseAssemblies(string mainMonotouchAssemblyName)
+        public static List<String> GetXamariniOSBaseAssemblies(string mainMonotouchAssemblyName, out string msCorLibPath)
         {
-            if (String.IsNullOrWhiteSpace(mainMonotouchAssemblyName)) return new string[] { };
+            msCorLibPath = null;
+            if (String.IsNullOrWhiteSpace(mainMonotouchAssemblyName)) return null;
             var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "monotouch.dll", SearchOption.AllDirectories);
             var mainMonotouchAssemblyPath = fileNames.First(f => Assembly.LoadFrom(f).FullName == mainMonotouchAssemblyName);
             var monoTouchAssembliesParentPath = Directory.GetParent(mainMonotouchAssemblyPath).Parent.FullName;
             var monoTouchSystemDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
             var monoTouchSystemCoreDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.Core.dll", SearchOption.AllDirectories).First();
-            return new[] { mainMonotouchAssemblyPath, monoTouchSystemDllPath, monoTouchSystemCoreDllPath };
+            msCorLibPath = Directory.GetFiles(monoTouchAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
+            return new List<string> { mainMonotouchAssemblyPath, monoTouchSystemDllPath, monoTouchSystemCoreDllPath };
         }
 
-        public static string[] GetRegularDotNetBaseAssemblies()
+        public static List<String> GetRegularDotNetBaseAssemblies()
         {
             var systemCore = Assembly.Load("System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
             var system = Assembly.Load("System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
-            return new[] { systemCore, system };
+            return new List<string> { systemCore, system };
         }
 
         public static string GetDeviceSpecificMainParams(MainWindow.DeviceTypes deviceType)

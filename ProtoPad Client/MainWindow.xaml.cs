@@ -34,7 +34,8 @@ namespace ProtoPad_Client
         private string _currentWrapText;
         private IProjectAssembly _projectAssembly;
         
-        private readonly List<string> _referencedAssemblies = new List<string>();  
+        private List<string> _referencedAssemblies = new List<string>();
+        private string _msCorLib = null;
 
         private string WrapHeader
         {
@@ -118,24 +119,29 @@ namespace ProtoPad_Client
                 };
         }
 
-        private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
+        private void UpdateAssemblyReferences()
         {
-            _projectAssembly.AssemblyReferences.AddMsCorLib();
-            string[] assemblies;
             switch (_currentDevice.DeviceType)
             {
                 case DeviceTypes.Android:
-                    assemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName);
+                    _referencedAssemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
                     break;
                 case DeviceTypes.iOS:
-                    assemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName);
+                    _referencedAssemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
                     break;
                 default:
                 case DeviceTypes.Local:
-                    assemblies = EditorHelpers.GetRegularDotNetBaseAssemblies();
+                    _msCorLib = null;
+                    _referencedAssemblies = EditorHelpers.GetRegularDotNetBaseAssemblies();
                     break;
             }
-            assemblies.ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
+        }
+
+        private void DotNetProjectAssemblyReferenceLoader(object sender, DoWorkEventArgs e)
+        {
+            _projectAssembly.AssemblyReferences.AddMsCorLib();
+            UpdateAssemblyReferences();
+            _referencedAssemblies.ToList().ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
         }
 
         private void SendCodeButton_Click(object sender, RoutedEventArgs e)
@@ -153,7 +159,7 @@ namespace ProtoPad_Client
 
                     var position = CodeEditor.Document.CurrentSnapshot.OffsetToPosition(codeOffset);
 
-                    ShowLineError(position.Line, exceptionParts[1]);
+                    ShowLineError(position.Line+1, exceptionParts[1]);
                 }
                 LogToResultsWindow(errorMessage);
             }
@@ -243,7 +249,6 @@ namespace ProtoPad_Client
         private string GetSourceWithBreakPoints()
         {
             var parseData = CodeEditor.Document.ParseData as IDotNetParseData;
-            //parseData.Snapshot.PositionRangeToTextRange(new TextPositionRange(new TextPosition()))
             
             var statementOffsets = new List<int>();
             VisitNodesAndSelectStatementOffsets(parseData.Ast, statementOffsets);
@@ -269,10 +274,13 @@ namespace ProtoPad_Client
             var codeWithOffsets = (specialNonEditorCode ?? GetSourceWithBreakPoints()).Replace("void Main(", "public void Main(");
 
             var sourceCode = wrapWithDefaultCode ? String.Format("{0}{1}{2}", WrapHeader.Replace("void Main(", "public void Main("), codeWithOffsets, WrapFooter) : codeWithOffsets;
-            var providerOptions_v35 = new Dictionary<string, string> {{"CompilerVersion", "v3.5"}};
-            var cpd = (_currentDevice.DeviceType == DeviceTypes.Android) ? new CSharpCodeProvider(providerOptions_v35) : new CSharpCodeProvider();
 
-            var compilerParameters = new CompilerParameters();
+            var useRegularMsCorLib = String.IsNullOrWhiteSpace(_msCorLib);
+            var cpd = new CSharpCodeProvider();
+
+            var compilerParameters = useRegularMsCorLib ? new CompilerParameters() : new CompilerParameters { CompilerOptions = "/nostdlib" };
+
+            if (!useRegularMsCorLib) compilerParameters.ReferencedAssemblies.Add(_msCorLib);
             compilerParameters.ReferencedAssemblies.AddRange(_referencedAssemblies.ToArray());
             
             compilerParameters.GenerateExecutable = false;
@@ -281,8 +289,8 @@ namespace ProtoPad_Client
             var errorStringBuilder = new StringBuilder();
             foreach (CompilerError error in compileResults.Errors)
             {
-                var headerLineCount = WrapHeader.Split('\n').Length;
-                var codeLineNumber = (error.Line - headerLineCount) / 2;
+                var startLines = WrapHeader.Split('\n').Length;
+                var codeLineNumber = (error.Line - startLines);
                 ShowLineError(codeLineNumber, error.ErrorText);
                 errorStringBuilder.AppendFormat("Error on line {0}: {1}\r\n", codeLineNumber, error.ErrorText);
             }
@@ -354,18 +362,7 @@ namespace ProtoPad_Client
             if (_currentDevice == null) return;
 
             _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType, _currentDevice.DeviceType);
-            switch (_currentDevice.DeviceType)
-            {
-                case DeviceTypes.Android:
-                    EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
-                    break;
-                case DeviceTypes.iOS:
-                    EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName).ToList().ForEach(a => _referencedAssemblies.Add(a));
-                    break;
-                case DeviceTypes.Local:
-                    EditorHelpers.GetRegularDotNetBaseAssemblies().ToList().ForEach(a => _referencedAssemblies.Add(a));
-                    break;
-            }
+            UpdateAssemblyReferences();
             CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType, _currentDevice.DeviceType));
             CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
         }
