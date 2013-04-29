@@ -84,22 +84,18 @@ namespace ProtoPad_Client.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to var url = new URL(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
+        ///   Looks up a localized string similar to // Enter any code you wish to run on the Android device or emulator app
+        ///// You can use the &apos;window&apos; variable, which is the main application window
+        ///// You can also use &apos;activity&apos;, which is the main application activity
+        ///
+        ///// New to ProtoPad? Uncomment and try the sample code below!
+        ///
+        ////*
+        ///var url = new URL(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
         ///var connection = url.OpenConnection() as HttpURLConnection;
         ///connection.DoInput = true;
         ///Bitmap bitmap = null;
-        ///var t1 = new Thread(delegate()
-        ///{
-        ///	connection.Connect();
-        ///	bitmap = BitmapFactory.DecodeStream(connection.InputStream);
-        ///});
-        ///t1.Start();
-        ///t1.Join();
-        ///bitmap.Dump();
-        ///var iv = new ImageView(window.Context);
-        ///iv.SetImageBitmap(bitmap);
-        ///window.AddContentView(iv, new ViewGroup.LayoutParams(200,100));
-        ///var  [rest of string was truncated]&quot;;.
+        ///var downloadBit [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SampleCodeAndroidProgram {
             get {
@@ -108,16 +104,17 @@ namespace ProtoPad_Client.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to var nsUrl = new NSUrl(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
+        ///   Looks up a localized string similar to // Enter any code you wish to run on the iOS simulator app
+        ///// You can use the &apos;window&apos; variable, which is the main application window
+        ///// You can also use &apos;appDelegate&apos;, which is the main application delegate
+        ///
+        ///// New to ProtoPad? Uncomment and try the sample code below!
+        ///
+        ////*
+        ///var nsUrl = new NSUrl(&quot;http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg&quot;);
         ///var data = NSData.FromUrl(nsUrl);
         ///var image = new UIImage(data);
-        ///NSError error;
-        ///image.AsJPEG().Save(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), &quot;dog.jpg&quot;), NSDataWritingOptions.WithoutOverwriting, out error);
-        ///var imageView = new UIImageView(image) { Frame = window.Frame };
-        ///window.AddSubview(imageView);
-        ///
-        ///var button1 = new UIButton{Frame = new RectangleF(0, 0, 100, 100)};
-        ///b [rest of string was truncated]&quot;;.
+        ///var imageFilePath = Path.Combine(Environment.GetFolderPath(Environ [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SampleCodeiOSProgram {
             get {
@@ -126,7 +123,10 @@ namespace ProtoPad_Client.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to // Running locally - use the Connect button to start working with your mobile app!.
+        ///   Looks up a localized string similar to // Running locally - use the Connect button to start working with your mobile app!
+        ///
+        ///// Or run any code you want to test locally using regular .Net (4.5), such as:
+        ///// Regex.Match(&quot;Inspect Regular Expression matches&quot;, &quot;ess?&quot;).Dump();.
         /// </summary>
         internal static string SampleCodeRegularProgram {
             get {

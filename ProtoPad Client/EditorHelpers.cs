@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Text.RegularExpressions;
 using ActiproSoftware.Text;
 
 namespace ProtoPad_Client
@@ -117,11 +118,10 @@ namespace ProtoPad_Client
                     break;
             }
 
-            sampleStatements = sampleStatements.Replace("\n", "\n\t");
-
             switch (codeType)
             {
                 case CodeType.Program:
+                    sampleStatements = sampleStatements.Replace("\n", "\n\t");
                     return @"void Main(" + GetDeviceSpecificMainParams(deviceType) + @")
 {
     " + sampleStatements + @"
@@ -148,6 +148,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 	
 public class __MTDynamicCode
 {
@@ -179,6 +181,8 @@ using Android.Widget;
 using Android.Graphics;
 using Android.OS;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.RegularExpressions;
 	
 public class __MTDynamicCode
 {
@@ -201,6 +205,10 @@ using System.Linq;
 using System.Reflection;
 using System.Drawing;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.IO;
 	
 public class __MTDynamicCode
 {

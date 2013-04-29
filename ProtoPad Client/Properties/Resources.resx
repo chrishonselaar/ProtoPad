@@ -192,46 +192,69 @@
 &lt;/html&gt;</value>
   </data>
   <data name="SampleCodeAndroidProgram" xml:space="preserve">
-    <value>var url = new URL("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
+    <value>// Enter any code you wish to run on the Android device or emulator app
+// You can use the 'window' variable, which is the main application window
+// You can also use 'activity', which is the main application activity
+
+// New to ProtoPad? Uncomment and try the sample code below!
+
+/*
+var url = new URL("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
 var connection = url.OpenConnection() as HttpURLConnection;
 connection.DoInput = true;
 Bitmap bitmap = null;
-var t1 = new Thread(delegate()
+var downloadBitmapThread = new Thread(delegate()
 {
 	connection.Connect();
 	bitmap = BitmapFactory.DecodeStream(connection.InputStream);
 });
-t1.Start();
-t1.Join();
+downloadBitmapThread.Start();
+downloadBitmapThread.Join();
 bitmap.Dump();
-var iv = new ImageView(window.Context);
-iv.SetImageBitmap(bitmap);
-window.AddContentView(iv, new ViewGroup.LayoutParams(200,100));
+var imageView = new ImageView(window.Context);
+imageView.SetImageBitmap(bitmap);
+window.AddContentView(imageView, new ViewGroup.LayoutParams(200,100));
+imageView.SetY(50);
 var imageFilePath = System.IO.Path.Combine(Android.OS.Environment.ExternalStorageDirectory.AbsolutePath,"Nepal.jpg");
 using (var fileStream = File.OpenWrite(imageFilePath))
 {
     bitmap.Compress(Bitmap.CompressFormat.Jpeg, 60, fileStream);
 }
 var button = new Button(window.Context);
-button.Text = "bla";
-window.AddContentView(button, new ViewGroup.LayoutParams(200,100));</value>
+button.Text = "Test";
+window.AddContentView(button, new ViewGroup.LayoutParams(200,100));
+button.SetY(200);
+*/</value>
   </data>
   <data name="SampleCodeiOSProgram" xml:space="preserve">
-    <value>var nsUrl = new NSUrl("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
+    <value>// Enter any code you wish to run on the iOS simulator app
+// You can use the 'window' variable, which is the main application window
+// You can also use 'appDelegate', which is the main application delegate
+
+// New to ProtoPad? Uncomment and try the sample code below!
+
+/*
+var nsUrl = new NSUrl("http://www.spc-intheworld.com/wp-content/uploads/2013/03/MtN-Nepal.jpg");
 var data = NSData.FromUrl(nsUrl);
 var image = new UIImage(data);
+var imageFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Nepal.jpg");
 NSError error;
-image.AsJPEG().Save(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "dog.jpg"), NSDataWritingOptions.WithoutOverwriting, out error);
+image.AsJPEG().Save(imageFilePath, NSDataWritingOptions.WithoutOverwriting, out error);
+image.Dump();
 var imageView = new UIImageView(image) { Frame = window.Frame };
 window.AddSubview(imageView);
 
-var button1 = new UIButton{Frame = new RectangleF(0, 0, 100, 100)};
-button1.SetTitle("Knop 1", UIControlState.Normal);
-window.AddSubview(button1);
-image.Dump();
-window.Dump();</value>
+var button = new UIButton{Frame = new RectangleF(0, 0, 100, 100)};
+button.SetTitle("Test", UIControlState.Normal);
+window.AddSubview(button);
+
+window.Dump(1);
+*/</value>
   </data>
   <data name="SampleCodeRegularProgram" xml:space="preserve">
-    <value>// Running locally - use the Connect button to start working with your mobile app!</value>
+    <value>// Running locally - use the Connect button to start working with your mobile app!
+
+// Or run any code you want to test locally using regular .Net (4.5), such as:
+// Regex.Match("Inspect Regular Expression matches", "ess?").Dump();</value>
   </data>
 </root>
