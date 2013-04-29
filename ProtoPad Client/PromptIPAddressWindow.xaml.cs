@@ -9,36 +9,29 @@ namespace ProtoPad_Client
 {
     public partial class PromptIPAddressWindow
     {
-        public static readonly DependencyProperty IPAddressProperty = DependencyProperty.Register("Text", typeof(String), typeof(TextBox), new FrameworkPropertyMetadata(""));
-        public string IPAddress
-        {
-            get { return Convert.ToString(GetValue(IPAddressProperty)); }
-            set { SetValue(IPAddressProperty, value); }
-        }
-
-        public static readonly DependencyProperty PortProperty = DependencyProperty.Register("Text", typeof(String), typeof(TextBox), new FrameworkPropertyMetadata(""));
-        public int Port
-        {
-            get { return int.Parse(Convert.ToString(GetValue(PortProperty))); }
-            set { SetValue(PortProperty, value); }
-        }
-
         public PromptIPAddressWindow()
         {
             InitializeComponent();
         }
-    }
 
-    public class CheckFilledConverter: IMultiValueConverter
-    {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            return values.All(v => (v is string) && (!String.IsNullOrWhiteSpace(v.ToString())));
+            DialogResult = true;
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        private void IPAddressTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            throw new NotImplementedException();
+            UpdateOkButton();
+        }
+
+        private void PortTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateOkButton();
+        }
+
+        private void UpdateOkButton()
+        {
+            OkButton.IsEnabled = !(String.IsNullOrWhiteSpace(IPAddressTextBox.Text) || String.IsNullOrWhiteSpace(PortTextBox.Text));
         }
     }
 }

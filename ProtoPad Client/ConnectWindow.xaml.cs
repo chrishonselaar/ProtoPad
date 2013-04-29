@@ -86,7 +86,7 @@ namespace ProtoPad_Client
         {
             var promptWindow = new PromptIPAddressWindow();
             if (!promptWindow.ShowDialog().Value) return;
-            var address = String.Format("{0}:{1}", promptWindow.IPAddress, promptWindow.Port);
+            var address = String.Format("http://{0}:{1}", promptWindow.IPAddressTextBox.Text, promptWindow.PortTextBox.Text);
             var deviceType = QuickConnect(address);
             if (!deviceType.HasValue)
             {

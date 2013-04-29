@@ -100,7 +100,14 @@ namespace ServiceDiscovery
         public static string SendWhoAreYou(string ipAddress)
         {
             var wc = new WebClient();
-            return wc.DownloadString(ipAddress+"/WhoAreYou");
+            try
+            {
+                return wc.DownloadString(ipAddress + "/WhoAreYou");
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public static string SendGetMainXamarinAssemblyName(string ipAddress)
