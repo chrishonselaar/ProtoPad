@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ProtoPad_Client.PromptIPAddressWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:src="clr-namespace:ProtoPad_Client"
-        Title="PromptIPAddressWindow" Height="128" Width="220">
+        Title="PromptIPAddressWindow" Height="128" Width="220" WindowStartupLocation="CenterOwner">
     <Grid>
         <Grid.Resources>
 

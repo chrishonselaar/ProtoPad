@@ -63,11 +63,12 @@ namespace ProtoPad_Client
             InitializeComponent();
 
             _currentDevice = new DeviceItem
-                {
-                    DeviceAddress = "__LOCAL__",
-                    DeviceType = DeviceTypes.Local,
-                    DeviceName = "Local"
-                };
+            {
+                DeviceAddress = "__LOCAL__",
+                DeviceType = DeviceTypes.Local,
+                DeviceName = "Local"
+            };
+            SetText();
             InitializeEditor();
             InitializeResultWindow();
         }
@@ -152,7 +153,7 @@ namespace ProtoPad_Client
 
                     var position = CodeEditor.Document.CurrentSnapshot.OffsetToPosition(codeOffset);
 
-                    ShowLineError(position.Line+1, exceptionParts[1]);
+                    ShowLineError(position.Line, exceptionParts[1]);
                 }
                 LogToResultsWindow(errorMessage);
             }
@@ -200,11 +201,18 @@ namespace ProtoPad_Client
         private ExecuteResponse SendCode(string url, bool wrapWithDefaultCode = true, string specialNonEditorCode = null)
         {
             var assemblyPath = CompileSource(wrapWithDefaultCode, specialNonEditorCode);
+            if (String.IsNullOrWhiteSpace(assemblyPath)) return null;
             if (_currentDevice.DeviceType == DeviceTypes.Local)
             {
-                return ExecuteLoadedAssemblyString(File.ReadAllBytes(assemblyPath));
+                var executeResponse = ExecuteLoadedAssemblyString(File.ReadAllBytes(assemblyPath));
+                var dumpValues = executeResponse.GetDumpValues();
+                if (dumpValues != null)
+                {
+                    executeResponse.Results = dumpValues.Select(v => new ResultPair(v.Description, Dumper.ObjectToDumpValue(v.Value, v.Level, executeResponse.GetMaxEnumerableItemCount()))).ToList();
+                }
+                return executeResponse;
             }
-            var responseString = String.IsNullOrWhiteSpace(assemblyPath) ? null : SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath)).Trim();
+            var responseString = SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath)).Trim();
             return String.IsNullOrWhiteSpace(responseString) ? null : UtilityMethods.JsonDecode<ExecuteResponse>(responseString);
         }
 
@@ -243,16 +251,17 @@ namespace ProtoPad_Client
 
             var inserts = statementOffsets.ToDictionary(o => o, o => String.Format("____TrackStatementOffset({0});", o));
 
+            var documentWithOffsets = new EditorDocument();
+            documentWithOffsets.SetText(parseData.Snapshot.Text);
+
             var options = new TextChangeOptions { OffsetDelta = TextChangeOffsetDelta.SequentialOnly };
-            var change = parseData.Snapshot.CreateTextChange(TextChangeTypes.Custom, options);
+            var change = documentWithOffsets.CreateTextChange(TextChangeTypes.Custom, options);
             foreach (var insert in inserts)
             {
                 change.InsertText(insert.Key, insert.Value);
             }
             change.Apply();
-            return change.Snapshot.Text;
-
-            //return parseData.Snapshot.Text.InsertAll(inserts, parseData.Snapshot);
+            return documentWithOffsets.Text;
         }
 
         private string CompileSource(bool wrapWithDefaultCode, string specialNonEditorCode = null)
@@ -266,6 +275,7 @@ namespace ProtoPad_Client
             
             var compilerParameters = new CompilerParameters();
             compilerParameters.ReferencedAssemblies.AddRange(_referencedAssemblies.ToArray());
+            
             compilerParameters.GenerateExecutable = false;
             var compileResults = cpd.CompileAssemblyFromSource(compilerParameters, sourceCode);
             CodeEditor.Document.IndicatorManager.Clear<ErrorIndicatorTagger, ErrorIndicatorTag>();
@@ -340,6 +350,8 @@ namespace ProtoPad_Client
 
         private void SetText()
         {
+            if (_currentDevice == null) return;
+
             _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType, _currentDevice.DeviceType);
             switch (_currentDevice.DeviceType)
             {
@@ -361,13 +373,13 @@ namespace ProtoPad_Client
         {
             switch (CodeTypeComboBox.SelectedValue.ToString())
             {
-                case "Expression":
+                case "C# Expression":
                     _currentCodeType = EditorHelpers.CodeType.Expression;
                     break;
-                case "Statements":
+                case "C# Statements":
                     _currentCodeType = EditorHelpers.CodeType.Statements;
                     break;
-                case "Program":
+                case "C# Program":
                     _currentCodeType = EditorHelpers.CodeType.Program;
                     break;
             }

@@ -15,16 +15,18 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,5">
             <ToolBar DockPanel.Dock="Top" VerticalAlignment="Top" Height="36" HorizontalAlignment="Stretch">
 
+                <Button x:Name="ConnectButton" Content="Connect" Height="31" VerticalAlignment="Top" Width="67" ToolTip="Connect to a mobile app" Click="ConnectButton_Click"/>
+                
                 <Button x:Name="SendCodeButton" Content="Run" Height="31" VerticalAlignment="Top" Width="61" Click="SendCodeButton_Click" ToolTip="Send code in editor window to connected app (F5)"/>
                 <Button x:Name="LoadAssemblyButton" Content="Add reference" Height="31" VerticalAlignment="Top" Width="100" Click="LoadAssemblyButton_Click" ToolTip="Select and send a  (compatible) .Net assembly to the running app. You will be able to reference and use that assembly from your code."/>
                 <Button x:Name="ClearSimulatorWindowButton" Content="Clear app window" Height="31" VerticalAlignment="Top" Width="121" Click="ClearSimulatorWindowButton_Click" ToolTip="Quickly remove all components from your app's main view" IsEnabled="False"/>
-                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="Statements" Width="100" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged" Margin="0" ToolTip="Select what mode to code in: use 'Expression' for quick oneline commands and inspections (no need to use Dump()), use 'Statements' for multi-line code, use 'Program' in order to be able to use functions and classes.">
-                    <sys:String>Expression</sys:String>
-                    <sys:String>Statements</sys:String>
-                    <sys:String>Program</sys:String>
+                <ComboBox x:Name="CodeTypeComboBox" VerticalAlignment="Top" SelectedValue="C# Statements" Width="104" Height="31" SelectionChanged="CodeTypeComboBox_SelectionChanged" Margin="0" ToolTip="Select what mode to code in: use 'Expression' for quick oneline commands and inspections (no need to use Dump()), use 'Statements' for multi-line code, use 'Program' in order to be able to use functions and classes.">
+                    <sys:String>C# Expression</sys:String>
+                    <sys:String>C# Statements</sys:String>
+                    <sys:String>C# Program</sys:String>
                 </ComboBox>
 
-                <Button x:Name="ConnectButton" Content="Connect" Height="31" VerticalAlignment="Top" Width="83" ToolTip="Instructions and information about the app author and leveraged components." Click="ConnectButton_Click"/>
+                
                 
                 <Button x:Name="AboutHelpButton" Content="About/help" Height="31" VerticalAlignment="Top" Width="83" Click="AboutHelpButton_Click" ToolTip="Instructions and information about the app author and leveraged components."/>
                 
@@ -32,7 +34,7 @@
 
             </ToolBar>
             <syntaxeditor:SyntaxEditor DockPanel.Dock="Bottom" x:Name="CodeEditor" IsIndicatorMarginVisible="True">
-                <syntaxeditor:EditorDocument xml:space="preserve"><![CDATA[//Please connect to a ProtoPad-enabled app!]]></syntaxeditor:EditorDocument>
+                <syntaxeditor:EditorDocument xml:space="preserve"></syntaxeditor:EditorDocument>
             </syntaxeditor:SyntaxEditor>
         </DockPanel>
 

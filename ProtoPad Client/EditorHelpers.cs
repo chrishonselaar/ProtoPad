@@ -45,8 +45,8 @@ namespace ProtoPad_Client
 
         public static string[] GetRegularDotNetBaseAssemblies()
         {
-            var systemCore = Assembly.Load(new AssemblyName("System.Core")).Location;
-            var system = Assembly.Load(new AssemblyName("System")).Location;
+            var systemCore = Assembly.Load("System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
+            var system = Assembly.Load("System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
             return new[] { systemCore, system };
         }
 
