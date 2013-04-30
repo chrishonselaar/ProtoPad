@@ -53,19 +53,25 @@
     <Reference Include="ActiproSoftware.SyntaxEditor.Addons.DotNet.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Program Files (x86)\Actipro Software\WPF-Controls\v13.1.0580\Assemblies\ActiproSoftware.SyntaxEditor.Addons.DotNet.Wpf.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="ActiproSoftware.SyntaxEditor.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Program Files (x86)\Actipro Software\WPF-Controls\v13.1.0580\Assemblies\ActiproSoftware.SyntaxEditor.Wpf.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="ActiproSoftware.Text.Addons.DotNet.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Program Files (x86)\Actipro Software\WPF-Controls\v13.1.0580\Assemblies\ActiproSoftware.Text.Addons.DotNet.Wpf.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="ActiproSoftware.Text.LLParser.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL" />
+    <Reference Include="ActiproSoftware.Text.LLParser.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL">
+      <Private>True</Private>
+    </Reference>
     <Reference Include="ActiproSoftware.Text.Wpf, Version=13.1.580.0, Culture=neutral, PublicKeyToken=36ff2196ab5654b9, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Program Files (x86)\Actipro Software\WPF-Controls\v13.1.0580\Assemblies\ActiproSoftware.Text.Wpf.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.mshtml, Version=7.0.3300.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <EmbedInteropTypes>False</EmbedInteropTypes>
@@ -142,6 +148,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <EmbeddedResource Include="licenses.licx" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
