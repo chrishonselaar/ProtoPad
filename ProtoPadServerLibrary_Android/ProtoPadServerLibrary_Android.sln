@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProtoPadServerLibrary_Android", "ProtoPadServerLibrary_Android.csproj", "{0F163A09-2124-457B-9257-A15DD13B8906}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp_Android", "..\SampleApp_Android\SampleApp_Android.csproj", "{EEA799FB-DDC9-41DB-BCAF-55480F0CBC65}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0F163A09-2124-457B-9257-A15DD13B8906}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F163A09-2124-457B-9257-A15DD13B8906}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F163A09-2124-457B-9257-A15DD13B8906}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F163A09-2124-457B-9257-A15DD13B8906}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEA799FB-DDC9-41DB-BCAF-55480F0CBC65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEA799FB-DDC9-41DB-BCAF-55480F0CBC65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEA799FB-DDC9-41DB-BCAF-55480F0CBC65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEA799FB-DDC9-41DB-BCAF-55480F0CBC65}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = ..\SampleApp_Android\SampleApp_Android.csproj
+	EndGlobalSection
+EndGlobal
