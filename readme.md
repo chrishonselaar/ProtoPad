@@ -6,10 +6,11 @@ A simple tool for [LIVE interactive development](https://github.com/chrishonsela
 ProtoPad consists of a very small dll (ProtoPad Server) that you include with your app, and a live code scratchpad (ProtoPad Client) that you can use to code against your app in real-time. You can use a completely blank app or an existing app. The ProtoPad server can be activated with one very simple statement:
 ProtoPadServer.Create(this);
 after which it will start listening for requests on your local network. When you fire up the ProtoPad Client, it will try to find a running app with ProtoPad Server active, and connect to it. That's it, now you can start coding live!
-If you are familiar with LinqPad (http://www.linqpad.net/), you will feel right at home. Use the editor to run any statements or even methods or entire classes on your device/simulator. They will execute immediately. You have full autocompletion functionality enabling you to easily discover the entire device coding framework. 
+If you are familiar with [LinqPad](http://www.linqpad.net/), you will feel right at home. Use the editor to run any statements or even methods or entire classes on your device/simulator. They will execute immediately. You have full autocompletion functionality enabling you to easily discover the entire device coding framework. 
 You can also send entire assemblies (as long as they are Xamarin.Android/Xamarin.iOS compatible respectively), that you can then use from your code.
 You can use the .Dump() extension method to inspect any object or value - again, in your running app! The results will be visualized in a nice collapsible tree format. Enumerable contents are presented in full, in a special compact format (currently limited to 1000 items max). 
 The .Dump() method works for Bitmaps/UIImages as well, and displays the image in the result pane.
+
 Similar to LinqPad, use the dropdown in the toolbar to choose between modes of scripting: use 'C# Expression' to evaluate simple expressions/objects directly. You cannot use multiple statements in this mode and, and you should not end the line with a semicolon.
 Use the default 'C# Statements' mode to enter one or multiple C# statements and run them together. You can use any valid C# statements.
 Use 'C# Program' mode to enable writing functions and even classes.
@@ -32,24 +33,20 @@ Not all Android devices support UDP Multicast (but most do). If your device does
 The Android emulator needs port forwarding set up in order to be able to connect to it on your local machine. This is done by logging in on the emulator through a Telnet client, and issuing port forwarding commands. ProtoPad client can take care of this for you automatically. Just use the 'New Android Emu' button. After that, you can use the Find button to automatically discover and connect to your app on the emulator.
 
 ## Requirements
-Xamarin Android/iOS - the Starter/Free edition should work fine!
-http://xamarin.com/download
-A Windows machine (Windows Vista and up) - Mac OS X version is under development!
+* [Xamarin Android/iOS](http://xamarin.com/download) - the Starter/Free edition should work fine!
+* A Windows machine (Windows Vista and up) - Mac OS X version is under development!
 
-For iOS you will also need a Mac OS X machine with Xamarin installed, as a build machine
+* For iOS you will also need a Mac OS X machine with Xamarin installed, as a build machine
 Refer to the Xamarin website for installation guides:
 http://docs.xamarin.com/guides/ios/getting_started/installation/windows
 http://docs.xamarin.com/guides/android/getting_started/installation/windows
 
-If you want to build ProtoPad Client from the source, you will also need a copy of the ActiPro SyntaxEditor for WPF control, and the ActiPro SyntaxEditor .Net Addon. You can download a free 100% functional evaluation version here: http://www.actiprosoftware.com/products/controls/wpf/syntaxeditor
+* If you want to build ProtoPad Client from the source, you will also need a copy of the ActiPro SyntaxEditor for WPF control, and the ActiPro SyntaxEditor .Net Addon. You can download a free 100% functional evaluation version here: http://www.actiprosoftware.com/products/controls/wpf/syntaxeditor
 
 ## Installation
 Just clone this GitHub project, it includes everything you need and sample apps. 
 Or you can download the ProtoPad client and assemblies to include in your iOS/Android app here: http://clearcode.nl/ProtoPad/client-pre-alpha.zip
 Please check the Requirements section to ensure everything has been set up correctly.
-
-
-
 
 ## Troubleshooting
 ProtoPad Client cannot find/connect to your ProtoPad Server-enabled app? Please try (temporarily) disabling your local firewall (on the Mac OS X build machine as well, for iOS), just to see if autodiscovery or data transfer might be hindered by this. Check out the source code to see which UDP/TCP ports are being used. You can override the main listening port on the app side by supplying it in the ProtoPadServer.Create call. Inspect the result of that function to find the IPAddress and port that are being used. You can use the "Manual IP" button in the ProtoPad client to connect to that address directly as well.
@@ -79,8 +76,7 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * Saving, Snippet repository and potentially integration with snippets on the Xamarin website?
 * Full integration with the larger framework (working name 'Carnival') that I am developing – which allows you to do MVVM style development with automatic binding+dependency tracking, with a view abstraction layer that allows you to achieve 100% code reuse if desired across all supported platforms (iOS/Android/Windows RT/Windows Phone/HTML5+Javascript offline/more TBA).
 
-
-## Potentially interesting stuff in the source code
+### Potentially interesting stuff in the source code
 If you are interested in any of the following topics, check out the source code - it provides some very easy to follow examples for these:
 * Using the UDP broadcast protocol (also see mDNS) to automatically publish and locate your service on a local network
 * Making UDP work on Android and iOS (acquiring a multicast lock, device-specific endpoint setup)
