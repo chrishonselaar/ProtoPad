@@ -27,6 +27,9 @@ Similar to LinqPad, use the dropdown in the toolbar to choose between modes of s
 
 ProtoPad can be used independently from Visual Studio - it does not even have to be installed. All you need is the ProtoPad Client application (which can be XCopy deployed), and an Android or iOS app enabled for ProtoPad (just include the ready-to-use DLL's below, or include the projects from the source above).
 
+Special note about using asynchronous code - the feedback loop between ProtoPad Client and ProtoPad server (your app) works synchronously.
+If you are returning results through `.Dump()` in an asynchronous task, make sure that you wait for it to complete before returning, otherwise your result might not be returned.
+
 ## Downloads
 Ready to use builds for Windows are available here:
 * [ProtoPad Client](https://github.com/chrishonselaar/ProtoPad/blob/master/Builds/ProtoPadClient.zip?raw=true) (just unpack files into the same directory and run `ProtoPad Client.exe`
@@ -91,8 +94,11 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * Add Using Statements configuration
 * ProtoPad editor/client app for Mac OS/X (Windows only for now, sorry, working on it!)
 * Windows RT and Windows Phone compatibility
+* Automated available port discovery
+* Improve automated Android Emulator port configuration
 * Ability to connect to an SQLite database used by the app, inspect and change its data and schema on the fly
 * Direct access to app files (useful for non-simulator sessions, or when you do not want to set up network shares for this)
+* Improve working with asynchronous code/threading.
 * Multiple editor+result tabs
 * Saving, Snippet repository and potentially integration with snippets on the Xamarin website?
 * Full integration with the larger framework (working name 'Carnival') that I am developing – which allows you to do MVVM style development with automatic binding+dependency tracking, with a view abstraction layer that allows you to achieve 100% code reuse if desired across all supported platforms (iOS/Android/Windows RT/Windows Phone/HTML5+Javascript offline/more TBA).
