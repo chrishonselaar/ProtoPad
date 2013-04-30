@@ -25,12 +25,11 @@ ProtoPad can be used independently from Visual Studio - it does not even have to
 
 ## Downloads
 Ready to use builds for Windows are available here:
-* [ProtoPad Client]() (just unpack files into the same directory and run `ProtoPad Client.exe`
-* [ProtoPad iOS Server DLL]()
-* [ProtoPad Android Server DLL]()
+* [ProtoPad Client](https://github.com/chrishonselaar/ProtoPad/blob/master/Builds/ProtoPadClient.zip?raw=true) (just unpack files into the same directory and run `ProtoPad Client.exe`
+* [ProtoPad iOS Server DLL](https://github.com/chrishonselaar/ProtoPad/blob/master/Builds/ProtoPadServerLibrary_iOS.dll?raw=true)
+* [ProtoPad Android Server DLL](https://github.com/chrishonselaar/ProtoPad/blob/master/Builds/ProtoPadServerLibrary_Android.dll?raw=true)
 
-Or just clone this GitHub project, it includes everything you need and sample apps. 
-Or you can download the ProtoPad client and assemblies to include in your iOS/Android app here: http://clearcode.nl/ProtoPad/client-pre-alpha.zip
+Or just clone this GitHub project, it includes everything you need and sample apps.
 Please check the Requirements section to ensure everything has been set up correctly.
 
 ## License/usage
