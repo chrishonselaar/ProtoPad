@@ -308,13 +308,15 @@ namespace ProtoPad_Client
 
             _projectAssembly.AssemblyReferences.Clear();
 
+            _referencedAssemblies.Clear();
+
+            SetText();
+
             var assemblyLoader = new BackgroundWorker();
             assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
             assemblyLoader.RunWorkerAsync();
 
-            _referencedAssemblies.Clear();
 
-            SetText();
 
             SendCodeButton.IsEnabled = true;
             LoadAssemblyButton.IsEnabled = true;
@@ -356,9 +358,10 @@ namespace ProtoPad_Client
         {
             ResultTextBox.Navigated += (sender, args) =>
             {
-                var htmlDocument = ResultTextBox.Document as HTMLDocument;
-                _htmlHolder = htmlDocument.getElementById("wrapallthethings");
-                _htmlWindow = htmlDocument.parentWindow;
+                var htmlDocument3 = ResultTextBox.Document as IHTMLDocument3;
+                var htmlDocument2 = ResultTextBox.Document as IHTMLDocument2;
+                _htmlHolder = htmlDocument3.getElementById("wrapallthethings");
+                _htmlWindow = htmlDocument2.parentWindow;
             };
             ResultTextBox.NavigateToString(Properties.Resources.ResultHtmlWrap);
         }
