@@ -12,8 +12,6 @@ namespace ProtoPad_Client
 {
     public static class EditorHelpers
     {
-        public enum CodeType {Expression, Statements, Program}
-
         public static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes) // todo: provide special WPF controls result window
         {
             MethodInfo printMethod;
@@ -119,9 +117,9 @@ namespace ProtoPad_Client
 
         public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
 
-        public static string GetWrapText(CodeType codeType, MainWindow.DeviceTypes deviceType)
+        public static string GetWrapText(MainWindow.CodeTypes codeType, MainWindow.DeviceTypes deviceType)
         {
-            string wrapText;
+            string wrapText = "";
             switch (deviceType)
             {
                 case MainWindow.DeviceTypes.Android:
@@ -130,34 +128,33 @@ namespace ProtoPad_Client
                 case MainWindow.DeviceTypes.iOS:
                     wrapText = WrapText_IOS_Base;
                     break;
-                default:
                 case MainWindow.DeviceTypes.Local:
                     wrapText = WrapText_RegularDotNet_Base;
                     break;
             }
             switch (codeType)
             {
-                case CodeType.Expression:
+                case MainWindow.CodeTypes.Expression:
                     wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main("+GetDeviceSpecificMainParams(deviceType)+@")
 {
     __STATEMENTSHERE__.Dump();
 }");
                     break;
-                case CodeType.Statements:
+                case MainWindow.CodeTypes.Statements:
                     wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main("+GetDeviceSpecificMainParams(deviceType)+@")
 {
     __STATEMENTSHERE__
 }");
                     break;
-                case CodeType.Program:
+                case MainWindow.CodeTypes.Program:
                     break;
             }
             return wrapText + WrapTextDumpHelpers;
         }
 
-        public static string GetDefaultCode(CodeType codeType, MainWindow.DeviceTypes deviceType)
+        public static string GetDefaultCode(MainWindow.CodeTypes codeType, MainWindow.DeviceTypes deviceType)
         {
-            string sampleStatements;
+            var sampleStatements = "";
             switch (deviceType)
             {
                 case MainWindow.DeviceTypes.Android:
@@ -166,7 +163,6 @@ namespace ProtoPad_Client
                 case MainWindow.DeviceTypes.iOS:
                     sampleStatements = Properties.Resources.SampleCodeiOSProgram;
                     break;
-                default:
                 case MainWindow.DeviceTypes.Local:
                     sampleStatements = Properties.Resources.SampleCodeRegularProgram;
                     break;
@@ -174,7 +170,7 @@ namespace ProtoPad_Client
 
             switch (codeType)
             {
-                case CodeType.Program:
+                case MainWindow.CodeTypes.Program:
                     sampleStatements = sampleStatements.Replace("\n", "\n\t");
                     return @"void Main(" + GetDeviceSpecificMainParams(deviceType) + @")
 {
@@ -182,12 +178,12 @@ namespace ProtoPad_Client
 }
 
 // Define other methods and classes here";
-                default:
-                case CodeType.Expression:
+                case MainWindow.CodeTypes.Expression:
                     return "";
-                case CodeType.Statements:
+                case MainWindow.CodeTypes.Statements:
                     return sampleStatements;
             }
+            return "";
         }
 
         public const string ClearWindowStatements_iOS = "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());";
@@ -341,6 +337,7 @@ public static class UtilityMethods
 {
     public static T JsonDecode<T>(string jsonValue)
     {
+        if (String.IsNullOrWhiteSpace(jsonValue)) return default(T);
         var serializer = new DataContractJsonSerializer(typeof(T));
         T result;
         using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonValue)))

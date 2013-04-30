@@ -173,7 +173,7 @@ namespace ProtoPad_Client
 
         private static MainWindow.DeviceTypes? QuickConnect(string endpoint)
         {
-            var appIdentifier = SimpleHttpServer.SendWhoAreYou(endpoint);
+            var appIdentifier = SimpleHttpServer.SendCustomCommand(endpoint, "WhoAreYou");
             if (String.IsNullOrWhiteSpace(appIdentifier)) return null;
             if (appIdentifier.Contains("Android")) return MainWindow.DeviceTypes.Android;
             if (appIdentifier.Contains("iOS")) return MainWindow.DeviceTypes.iOS;

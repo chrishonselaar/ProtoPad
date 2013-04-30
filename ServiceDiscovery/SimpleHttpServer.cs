@@ -11,12 +11,9 @@ namespace ServiceDiscovery
     public sealed class SimpleHttpServer: IDisposable
     {
         private readonly HttpListener _listener;
-        private readonly string _appIdentifier;
-        private readonly string _referenceAssemblyName;
         private const int ChunkSize = 1024;
 
-        public delegate string ResponseBytesWithResultHandler(byte[] responseBytes);
-        private readonly ResponseBytesWithResultHandler _responseBytesWithResultHandler;
+        private readonly Dictionary<string, Func<byte[], string>> _requestHandlers;
 
         private class HttpResponseState
         {
@@ -27,44 +24,20 @@ namespace ServiceDiscovery
             public HttpListenerResponse Response;
         }
 
-        public SimpleHttpServer(ResponseBytesWithResultHandler responseBytesWithResultHandler, int port, string appIdentifier, string referenceAssemblyName)
+        public SimpleHttpServer(int port, Dictionary<string, Func<byte[], string>> requestHandlers)
         {
-            _appIdentifier = appIdentifier;
-            _referenceAssemblyName = referenceAssemblyName;
-            _responseBytesWithResultHandler = responseBytesWithResultHandler;
+            _requestHandlers = requestHandlers;
             _listener = new HttpListener();
             _listener.Prefixes.Add(String.Format("http://*:{0}/", port));
             _listener.Start();
             _listener.BeginGetContext(HandleRequest, _listener);
 
-            Debug.WriteLine("Server started");
+            Debug.WriteLine("ProtoPad HTTP Server started");
         }
 
         private void Callback(IAsyncResult ar)
         {            
             var state = (HttpResponseState)ar.AsyncState;
-
-            if (state.Request.Url.PathAndQuery.Contains("WhoAreYou"))
-            {
-                var responseBytes = Encoding.UTF8.GetBytes(_appIdentifier);
-                state.Response.ContentType = "text/plain";
-                state.Response.StatusCode = (int)HttpStatusCode.OK;
-                state.Response.ContentLength64 = responseBytes.Length;
-                state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
-                state.Response.OutputStream.Close();
-                return;
-            }
-
-            if (state.Request.Url.PathAndQuery.Contains("GetMainXamarinAssembly"))
-            {
-                var responseBytes = Encoding.UTF8.GetBytes(_referenceAssemblyName);
-                state.Response.ContentType = "text/plain";
-                state.Response.StatusCode = (int)HttpStatusCode.OK;
-                state.Response.ContentLength64 = responseBytes.Length;
-                state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
-                state.Response.OutputStream.Close();
-                return;
-            }
 
             var bytesRead = state.Stream.EndRead(ar);
             if (bytesRead > 0)
@@ -77,15 +50,20 @@ namespace ServiceDiscovery
             else
             {
                 state.Stream.Dispose();
-                var totalBytes = state.Result.SelectMany(byteArr => byteArr).ToArray();
-                var codeResult = _responseBytesWithResultHandler(totalBytes);
-                var response = codeResult ?? "ok";
-                var responseBytes = Encoding.UTF8.GetBytes(response);
-                state.Response.ContentType = "text/plain";
-                state.Response.StatusCode = (int)HttpStatusCode.OK;
-                state.Response.ContentLength64 = responseBytes.Length;
-                state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
-                state.Response.OutputStream.Close();    
+                var responseData = state.Result.SelectMany(byteArr => byteArr).ToArray();
+
+                foreach (var requestHandler in _requestHandlers)
+                {
+                    if (!state.Request.Url.PathAndQuery.Contains(requestHandler.Key)) continue;
+                    var responseValue = requestHandler.Value(responseData);
+                    var responseBytes = Encoding.UTF8.GetBytes(responseValue);
+                    state.Response.ContentType = "text/plain";
+                    state.Response.StatusCode = (int)HttpStatusCode.OK;
+                    state.Response.ContentLength64 = responseBytes.Length;
+                    state.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
+                    state.Response.OutputStream.Close();
+                    return;
+                }
             }
         }
 
@@ -97,12 +75,12 @@ namespace ServiceDiscovery
             context.Request.InputStream.BeginRead(state.Buffer, 0, state.Buffer.Length, Callback, state);        
         }
 
-        public static string SendWhoAreYou(string ipAddress)
+        public static string SendCustomCommand(string ipAddress, string command)
         {
             var wc = new WebClient();
             try
             {
-                return wc.DownloadString(ipAddress + "/WhoAreYou");
+                return wc.DownloadString(ipAddress + "/" + command);
             }
             catch
             {
@@ -110,14 +88,9 @@ namespace ServiceDiscovery
             }
         }
 
-        public static string SendGetMainXamarinAssemblyName(string ipAddress)
+        public static string SendPostRequest(string ipAddress, byte[] byteArray, string command)
         {
-            var wc = new WebClient();
-            return wc.DownloadString(ipAddress + "/GetMainXamarinAssembly");
-        }
-        public static string SendPostRequest(string ipAddress, byte[] byteArray)
-        {
-            var request = WebRequest.Create(ipAddress);
+            var request = WebRequest.Create(ipAddress + "/" + command);
             request.Method = "POST";
             request.ContentLength = byteArray.Length;
             request.ContentType = "application/x-www-form-urlencoded";

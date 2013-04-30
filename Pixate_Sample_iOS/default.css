@@ -1,0 +1,10 @@
+﻿#button1 {
+    border-radius    : 5px;
+    font-family      : "American Typewriter";
+    font-size        : 13px;
+    font-weight      : bold;
+    text-transform   : uppercase;
+    letter-spacing   : 0.75px;
+    color            : #ffffff;
+    background-color : #008ed4;
+}

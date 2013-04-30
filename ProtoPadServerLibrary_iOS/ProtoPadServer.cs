@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -24,7 +25,8 @@ namespace ProtoPadServerLibrary_iOS
         private readonly UIWindow _window;
         private readonly SimpleHttpServer _httpServer;
         private readonly UdpDiscoveryServer _udpServer;
-
+        private readonly List<string> _pixateCssPaths = new List<string>();
+ 
         /// <summary>
         /// Starts listening for ProtoPad clients, and allows them to connect and access the UIApplicationDelegate and UIWindow you pass in
         /// WARNING: do not dispose until you are done listening for ProtoPad client events. Usually you will want to dispose only upon exiting the app.
@@ -47,16 +49,40 @@ namespace ProtoPadServerLibrary_iOS
 
             var mainMonotouchAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name.ToLower() == "monotouch");
 
-            _httpServer = new SimpleHttpServer(responseBytes =>
-            {
-                var response = "{}";
-                var remoteCommandDoneEvent = new AutoResetEvent(false);
-                _appDelegate.InvokeOnMainThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));
-                remoteCommandDoneEvent.WaitOne();
-                return response;
-            }, ListeningPort, "iOS", mainMonotouchAssembly.FullName);
+            var requestHandlers = new Dictionary<string, Func<byte[], string>>
+                {
+                    {"GetMainXamarinAssembly", data => mainMonotouchAssembly.FullName},
+                    {"WhoAreYou", data => "iOS"},
+                    {"GetPixateCssFiles", data => JsonEncode(_pixateCssPaths.ToArray())},
+                    {"ExecuteAssembly", data =>
+                        {
+                            var response = "{}";
+                            var remoteCommandDoneEvent = new AutoResetEvent(false);
+                            _appDelegate.InvokeOnMainThread(() => ExecuteAssemblyAndCreateResponse(data, remoteCommandDoneEvent, ref response));
+                            remoteCommandDoneEvent.WaitOne();
+                            return response;
+                        }
+                    },
+                    {"UpdatePixateCSS", data =>
+                        {
+                            var response = "{}";
+                            var remoteCommandDoneEvent = new AutoResetEvent(false);
+                            var filePathDataLength = (data[1] << 8) + data[0];
+                            var filePathData = new byte[filePathDataLength];
+                            Array.Copy(data, 1, filePathData, 0, filePathDataLength);
+                            var filePath = Encoding.UTF8.GetString(filePathData);
+                            var cssFileDataLength = data.Length - (2 + filePathDataLength);
+                            var cssFileData = new byte[cssFileDataLength];
+                            Array.Copy(data, 2 + filePathDataLength, cssFileData, 0, cssFileDataLength);
+                            _appDelegate.InvokeOnMainThread(() => UpdatePixateCssFile(filePath, cssFileData, remoteCommandDoneEvent, ref response));
+                            remoteCommandDoneEvent.WaitOne();
+                            return response;
+                        }
+                    }
+                };
 
-            //_udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort), Helpers.GetCurrentIPAddress());          
+            _httpServer = new SimpleHttpServer(ListeningPort, requestHandlers);
+
             _udpServer = new UdpDiscoveryServer(BroadcastedAppName, String.Format("http://{0}:{1}/", LocalIPAddress, ListeningPort));
         }
 
@@ -73,11 +99,28 @@ namespace ProtoPadServerLibrary_iOS
             return resultJSON;
         }
 
-        private void Response(byte[] responseBytes, EventWaitHandle remoteCommandDoneEvent, ref string response)
+        private static void UpdatePixateCssFile(string cssFilePath, byte[] requestData, EventWaitHandle remoteCommandDoneEvent, ref string response)
         {
             try
             {
-                var executeResponse = ExecuteLoadedAssemblyString(responseBytes, _appDelegate, _window);
+                File.WriteAllBytes(cssFilePath, requestData);
+                response = "ok";
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+            finally
+            {
+                remoteCommandDoneEvent.Set();
+            }
+        }
+
+        private void ExecuteAssemblyAndCreateResponse(byte[] requestData, EventWaitHandle remoteCommandDoneEvent, ref string response)
+        {
+            try
+            {
+                var executeResponse = ExecuteAssembly(requestData, _appDelegate, _window);
                 var dumpValue = executeResponse.GetDumpValues();
                 if (dumpValue != null)
                 {
@@ -88,7 +131,7 @@ namespace ProtoPadServerLibrary_iOS
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Debug.WriteLine(e.Message);
             }
             finally
             {
@@ -96,7 +139,7 @@ namespace ProtoPadServerLibrary_iOS
             }
         }
 
-        private static ExecuteResponse ExecuteLoadedAssemblyString(byte[] loadedAssemblyBytes, UIApplicationDelegate appDelegate, UIWindow window)
+        private static ExecuteResponse ExecuteAssembly(byte[] loadedAssemblyBytes, UIApplicationDelegate appDelegate, UIWindow window)
         {
             MethodInfo printMethod;
 
@@ -145,6 +188,11 @@ namespace ProtoPadServerLibrary_iOS
         {
             if (_httpServer != null) _httpServer.Dispose();
             if (_udpServer != null) _udpServer.Dispose();
+        }
+
+        public void AddPixateCssPath(string pixateCssFilePath)
+        {
+            _pixateCssPaths.Add(pixateCssFilePath);
         }
     }
 }

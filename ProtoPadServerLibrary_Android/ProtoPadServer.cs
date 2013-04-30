@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -48,14 +49,22 @@ namespace ProtoPadServerLibrary_Android
 
             var mainMonodroidAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name.ToLower() == "mono.android");
 
-            _httpServer = new SimpleHttpServer(responseBytes =>
-            {
-                var response = "{}";
-                var remoteCommandDoneEvent = new AutoResetEvent(false);
-                _contextActivity.RunOnUiThread(() => Response(responseBytes, remoteCommandDoneEvent, ref response));                
-                remoteCommandDoneEvent.WaitOne();
-                return response;
-            }, ListeningPort, "Android", mainMonodroidAssembly.FullName);
+            var requestHandlers = new Dictionary<string, Func<byte[], string>>
+                {
+                    {"GetMainXamarinAssembly", data => mainMonodroidAssembly.FullName},
+                    {"WhoAreYou", data => "Android"},
+                    {"ExecuteAssembly", data =>
+                        {
+                            var response = "{}";
+                            var remoteCommandDoneEvent = new AutoResetEvent(false);
+                            _contextActivity.RunOnUiThread(() => Response(data, remoteCommandDoneEvent, ref response));                
+                            remoteCommandDoneEvent.WaitOne();
+                            return response;
+                        }
+                    }
+                };
+
+            _httpServer = new SimpleHttpServer(ListeningPort, requestHandlers);
 
             IPAddress broadCastAddress;
             using (var wifi = _contextActivity.GetSystemService(Android.Content.Context.WifiService) as WifiManager)

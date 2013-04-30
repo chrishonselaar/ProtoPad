@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Navigation;
 using ActiproSoftware.Text;
@@ -33,9 +34,9 @@ namespace ProtoPad_Client
         private IProjectAssembly _projectAssembly;
         
         private List<string> _referencedAssemblies = new List<string>();
-        private string _msCorLib = null;
+        private string _msCorLib;
 
-        private EditorHelpers.CodeType _currentCodeType = EditorHelpers.CodeType.Statements;
+        private CodeTypeItem _currentCodeType;
         private DeviceItem _currentDevice;
 
         private string WrapHeader
@@ -55,7 +56,21 @@ namespace ProtoPad_Client
             public string DeviceName { get; set; }
             public string DeviceAddress { get; set; }
             public string MainXamarinAssemblyName { get; set; }
+            public string[] PixateCssPaths { get; set; }
+
             public DeviceTypes DeviceType;
+        }
+
+        public enum CodeTypes
+        {
+            Expression, Statements, Program, PixateCssFile
+        }
+
+        public class CodeTypeItem
+        {
+            public string DisplayName;
+            public CodeTypes CodeType;
+            public string EditFilePath;
         }
 
         public MainWindow()
@@ -68,8 +83,14 @@ namespace ProtoPad_Client
                 DeviceType = DeviceTypes.Local,
                 DeviceName = "Local"
             };
+            _currentCodeType = new CodeTypeItem
+                {
+                    CodeType = CodeTypes.Statements,
+                    DisplayName = "C# Statements"
+                };
 
-            SetText();
+            ConnectToApp(_currentDevice);
+
             InitializeEditor();
             InitializeResultWindow();
         }
@@ -133,29 +154,18 @@ namespace ProtoPad_Client
             var assemblyPath = dlg.FileName;
             _projectAssembly.AssemblyReferences.AddFrom(assemblyPath);
             _referencedAssemblies.Add(assemblyPath);
-            SimpleHttpServer.SendPostRequest(_currentDevice.DeviceAddress, File.ReadAllBytes(assemblyPath));
+            SimpleHttpServer.SendPostRequest(_currentDevice.DeviceAddress, File.ReadAllBytes(assemblyPath), "ExecuteAssembly");
         }
 
         private void CodeTypeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            switch (CodeTypeComboBox.SelectedValue.ToString())
-            {
-                case "C# Expression":
-                    _currentCodeType = EditorHelpers.CodeType.Expression;
-                    break;
-                case "C# Statements":
-                    _currentCodeType = EditorHelpers.CodeType.Statements;
-                    break;
-                case "C# Program":
-                    _currentCodeType = EditorHelpers.CodeType.Program;
-                    break;
-            }
+            _currentCodeType = CodeTypeComboBox.SelectedItem as CodeTypeItem;
             SetText();
         }
 
         private void ClearSimulatorWindowButton_Click(object sender, RoutedEventArgs e)
         {
-            var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Statements, _currentDevice.DeviceType);
+            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Statements, _currentDevice.DeviceType);
             var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS ? EditorHelpers.ClearWindowStatements_iOS : EditorHelpers.ClearWindowStatements_Android);
             SendCode(_currentDevice.DeviceAddress, false, clearCode);            
         }
@@ -192,7 +202,7 @@ namespace ProtoPad_Client
                 }
                 return executeResponse;
             }
-            var responseString = SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath)).Trim();
+            var responseString = SimpleHttpServer.SendPostRequest(url, File.ReadAllBytes(assemblyPath), "ExecuteAssembly").Trim();
             return String.IsNullOrWhiteSpace(responseString) ? null : UtilityMethods.JsonDecode<ExecuteResponse>(responseString);
         }
 
@@ -286,6 +296,20 @@ namespace ProtoPad_Client
             CodeEditor.Document.IndicatorManager.Add<ErrorIndicatorTagger, ErrorIndicatorTag>(CodeEditor.ActiveView.Selection.SnapshotRange, tag);
         }
 
+        private void UpdateCodeTypesComboBox()
+        {
+            CodeTypeComboBox.Items.Clear();
+            CodeTypeComboBox.Items.Add(new CodeTypeItem {DisplayName = "C# Expresssion", CodeType = CodeTypes.Expression});
+            CodeTypeComboBox.Items.Add(new CodeTypeItem { DisplayName = "C# Statements", CodeType = CodeTypes.Statements });
+            CodeTypeComboBox.Items.Add(new CodeTypeItem { DisplayName = "C# Program", CodeType = CodeTypes.Program });
+            if (_currentDevice.PixateCssPaths == null) return;
+            foreach (var cssPath in _currentDevice.PixateCssPaths)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(cssPath);
+                CodeTypeComboBox.Items.Add(new CodeTypeItem { DisplayName = "Pixate CSS: " + fileName, CodeType = CodeTypes.PixateCssFile, EditFilePath = cssPath });
+            }
+        }
+
         private void ConnectToApp(DeviceItem deviceItem)
         {
             _currentDevice = deviceItem;
@@ -300,9 +324,16 @@ namespace ProtoPad_Client
             }
             else
             {
-                _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendGetMainXamarinAssemblyName(_currentDevice.DeviceAddress);
+                _currentDevice.MainXamarinAssemblyName = SimpleHttpServer.SendCustomCommand(_currentDevice.DeviceAddress, "GetMainXamarinAssembly");
+                if (_currentDevice.DeviceType == DeviceTypes.iOS)
+                {
+                    var cssFilesJson = SimpleHttpServer.SendCustomCommand(_currentDevice.DeviceAddress, "GetPixateCssFiles");
+                    _currentDevice.PixateCssPaths = UtilityMethods.JsonDecode<string[]>(cssFilesJson);
+                }
                 LogToResultsWindow("Connected to device '{0}' on [{1}]", _currentDevice.DeviceName, _currentDevice.DeviceAddress);
             }
+
+            UpdateCodeTypesComboBox();
 
             Title = String.Format("ProtoPad - {0}", _currentDevice.DeviceName);
 
@@ -316,8 +347,6 @@ namespace ProtoPad_Client
             assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
             assemblyLoader.RunWorkerAsync();
 
-
-
             SendCodeButton.IsEnabled = true;
             LoadAssemblyButton.IsEnabled = true;
 
@@ -328,7 +357,7 @@ namespace ProtoPad_Client
                 return; // todo: locate and provide Android Emulator file path if applicable
             }
 
-            var wrapText = EditorHelpers.GetWrapText(EditorHelpers.CodeType.Expression, _currentDevice.DeviceType);
+            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Expression, _currentDevice.DeviceType);
             var getFolderCode = wrapText.Replace("__STATEMENTSHERE__", "Environment.GetFolderPath(Environment.SpecialFolder.Personal)");
             var result = SendCode(_currentDevice.DeviceAddress, false, getFolderCode);
             if (result == null || result.Results == null) return;
@@ -341,9 +370,9 @@ namespace ProtoPad_Client
         {
             if (_currentDevice == null) return;
 
-            _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType, _currentDevice.DeviceType);
+            _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType.CodeType, _currentDevice.DeviceType);
             UpdateAssemblyReferences();
-            CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType, _currentDevice.DeviceType));
+            CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType.CodeType, _currentDevice.DeviceType));
             CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
         }
 
@@ -368,19 +397,7 @@ namespace ProtoPad_Client
 
         private void InitializeEditor()
         {
-            // Initialize the project assembly (enables support for automated IntelliPrompt features)
-            _projectAssembly = new CSharpProjectAssembly("ProtoPad Client");
-            var assemblyLoader = new BackgroundWorker();
-            assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
-            assemblyLoader.RunWorkerAsync();
-
-            // Load the .NET Languages Add-on C# language and register the project assembly on it
-            var language = new CSharpSyntaxLanguage();
-            language.RegisterProjectAssembly(_projectAssembly);
-
-            CodeEditor.Document.Language = language;
-
-            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
+            UpdateEditorLanguage(_currentCodeType.CodeType);
 
             CodeEditor.PreviewKeyDown += (sender, args) =>
             {
@@ -388,6 +405,34 @@ namespace ProtoPad_Client
                 SendCodeButton_Click(null, null);
                 args.Handled = true;
             };
+        }
+
+        private void UpdateEditorLanguage(CodeTypes codeType)
+        {
+            ISyntaxLanguage language;
+            if (codeType == CodeTypes.PixateCssFile)
+            {
+                var serializer = new SyntaxLanguageDefinitionSerializer();
+                using (var cssLanguageStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ProtoPad_Client.Css.langdef"))
+                {
+                    language = serializer.LoadFromStream(cssLanguageStream);    
+                }
+            }
+            else
+            {
+                // Initialize the project assembly (enables support for automated IntelliPrompt features)
+                _projectAssembly = new CSharpProjectAssembly("ProtoPad Client");
+                var assemblyLoader = new BackgroundWorker();
+                assemblyLoader.DoWork += DotNetProjectAssemblyReferenceLoader;
+                assemblyLoader.RunWorkerAsync();
+
+                // Load the .NET Languages Add-on C# language and register the project assembly on it
+                language = new CSharpSyntaxLanguage();
+                language.RegisterProjectAssembly(_projectAssembly);
+            }
+
+            CodeEditor.Document.Language = language;
+            CodeEditor.Document.Language.RegisterService(new IndicatorQuickInfoProvider());
         }
 
         private void UpdateAssemblyReferences()
@@ -413,6 +458,21 @@ namespace ProtoPad_Client
             _projectAssembly.AssemblyReferences.AddMsCorLib();
             UpdateAssemblyReferences();
             _referencedAssemblies.ForEach(a => _projectAssembly.AssemblyReferences.AddFrom(a));
+        }
+
+        private void SendCssButton_Click(object sender, RoutedEventArgs e)
+        {
+            var cssText = CodeEditor.Document.CurrentSnapshot.Text;
+            var cssData = Encoding.UTF8.GetBytes(cssText);
+            var cssFilePathData = Encoding.UTF8.GetBytes(_currentCodeType.EditFilePath);
+            var requestLength = 2 + cssFilePathData.Length + cssData.Length;
+            var requestData = new byte[requestLength];
+            var cssFilePathDataLength = (ushort)(cssFilePathData.Length);
+            requestData[0] = (byte)(cssFilePathDataLength >> 8);
+            requestData[1] = (byte)cssFilePathDataLength;
+            Array.Copy(cssFilePathData, 0, requestData, 2, cssFilePathDataLength);
+            Array.Copy(cssData, 0, requestData, 2 + cssFilePathDataLength, cssData.Length);
+            SimpleHttpServer.SendPostRequest(_currentDevice.DeviceAddress, requestData, "UpdatePixateCSS");
         }
     }
 }
