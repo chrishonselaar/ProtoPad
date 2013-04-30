@@ -95,6 +95,7 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * ProtoPad editor/client app for Mac OS/X (Windows only for now, sorry, working on it!)
 * Windows RT and Windows Phone compatibility
 * Automated available port discovery
+* Ability to transfer any kind of file between the ProtoPad Client and app directly, and browse the app/device's filesystem
 * Improve automated Android Emulator port configuration
 * Ability to connect to an SQLite database used by the app, inspect and change its data and schema on the fly
 * Direct access to app files (useful for non-simulator sessions, or when you do not want to set up network shares for this)
@@ -103,7 +104,7 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * Saving, Snippet repository and potentially integration with snippets on the Xamarin website?
 * Full integration with the larger framework (working name 'Carnival') that I am developing – which allows you to do MVVM style development with automatic binding+dependency tracking, with a view abstraction layer that allows you to achieve 100% code reuse if desired across all supported platforms (iOS/Android/Windows RT/Windows Phone/HTML5+Javascript offline/more TBA).
 
-### Potentially interesting stuff in the source code
+### Potentially interesting snippets in the source code
 If you are interested in any of the following topics, check out the source code - it provides some very easy to follow examples for these:
 * Using the UDP broadcast protocol (also see mDNS) to automatically publish and locate your service on a local network
 * Making UDP work on Android and iOS (acquiring a multicast lock, device-specific endpoint setup)
