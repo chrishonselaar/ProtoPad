@@ -2,6 +2,10 @@
 
 A simple tool for [LIVE interactive development](https://github.com/chrishonselaar/ProtoPad#features) on iOS and Android.
 
+
+![ProtoPad](http://clearcode.nl/temp/Protopad-Screenshot1.png "ProtoPad")
+
+
 ## Getting started
 ProtoPad consists of a very small dll (ProtoPad Server) that you include with your app, and a live code scratchpad (ProtoPad Client) that you can use to code against your app in real-time. You can use a completely blank app or an existing app. The ProtoPad server can be activated with one very simple statement:
 ```csharp
@@ -64,6 +68,10 @@ http://docs.xamarin.com/guides/android/getting_started/installation/windows
 ## Troubleshooting
 ProtoPad Client cannot find/connect to your ProtoPad Server-enabled app? Please try (temporarily) disabling your local firewall (on the Mac OS X build machine as well, for iOS), just to see if autodiscovery or data transfer might be hindered by this. Check out the source code to see which UDP/TCP ports are being used. You can override the main listening port on the app side by supplying it in the ProtoPadServer.Create call. Inspect the result of that function to find the IPAddress and port that are being used. You can use the "Manual IP" button in the ProtoPad client to connect to that address directly as well.
 Also make sure that you enable all applicable permissions (internet/wifi/Multicast) in your app manifest/info.plist. Check out the sample apps for more information.
+
+
+![ProtoPad error reporting](http://clearcode.nl/temp/Protopad-Screenshot2.png "ProtoPad error reporting")
+
 
 ## Features
 * Real-time interactive development / prototyping with full access to the entire c# language and .Net/Mono framework on mobile devices, including iPhone/iPad (simulator)!
