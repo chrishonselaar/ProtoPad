@@ -5,7 +5,7 @@ A simple tool for [LIVE interactive development](https://github.com/chrishonsela
 ## So what do I use it for?
 * Experiment with all the real mobile APIs with near-instant feedback
 * Tweak your app GUI by manipulating controls while it is running
-* New: try out the [Pixate](http://www,pixate.com) app styling framework in realtime!!
+* **New: try out the [Pixate](http://www,pixate.com) app styling framework in realtime!!**
 * Quickly prototype fully working apps without firing up Visual Studio or Xamarin Studio
 * Rapidly develop and test code concepts, and simply paste them into your project when you are happy
 * Find out what is happening in your app during runtime, without breakpoints, debuggers
