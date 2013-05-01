@@ -103,8 +103,13 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * Friendly statusbar indicator of the local filesystem location of the connected app (when running on a simulator), so that you can find and access your live running app’s files easily (see screenshot 1, having the OS/X simulator files location mapped to a Windows share makes it really easy to prototype functionality that interacts with the iOS filesystem!)
 * Easily clear your app’s main view with one click (so you can do quick full interface make-overs)
 
-## Planned features
-* Improve the UI, add keyboard shortcuts, better documentation etc.
+## Planned features (anyone is **more** than welcome to help out with this!)
+* Improve the UI and error handling
+* Add more keyboard shortcuts
+* Add saving/opening functionality
+* Preserve code when switching between code types (Expression/Statements/Program)
+* Add better documentation
+* Create video tutorial
 * Add Using Statements configuration
 * ProtoPad editor/client app for Mac OS/X (Windows only for now, sorry, working on it!)
 * Windows RT and Windows Phone compatibility
