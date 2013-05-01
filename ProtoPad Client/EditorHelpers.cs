@@ -90,14 +90,15 @@ namespace ProtoPad_Client
             var monoTouchSystemDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
             var monoTouchSystemCoreDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.Core.dll", SearchOption.AllDirectories).First();
             msCorLibPath = Directory.GetFiles(monoTouchAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
-            return new List<string> { mainMonotouchAssemblyPath, monoTouchSystemDllPath, monoTouchSystemCoreDllPath };
+            //mscorlib-runtime.dll
+            return new List<string> { monoTouchSystemDllPath, monoTouchSystemCoreDllPath, mainMonotouchAssemblyPath };
         }
 
-        public static List<String> GetRegularDotNetBaseAssemblies()
+        public static List<String> GetRegularDotNetBaseAssemblyNames()
         {
-            var systemCore = Assembly.Load("System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
-            var system = Assembly.Load("System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089").Location;
-            var systemDrawing = Assembly.Load("System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location;
+            const string systemCore = "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089";
+            const string system = "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089";
+            const string systemDrawing = "System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a";
             return new List<string> { systemCore, system, systemDrawing };
         }
 

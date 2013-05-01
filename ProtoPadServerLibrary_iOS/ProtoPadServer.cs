@@ -51,30 +51,40 @@ namespace ProtoPadServerLibrary_iOS
 
             var requestHandlers = new Dictionary<string, Func<byte[], string>>
                 {
-                    {"GetMainXamarinAssembly", data => mainMonotouchAssembly.FullName},
-                    {"WhoAreYou", data => "iOS"},
-                    {"GetPixateCssFiles", data => JsonEncode(_pixateCssPaths.ToArray())},
-                    {"ExecuteAssembly", data =>
+                    {"GetMainXamarinAssembly", requestData => mainMonotouchAssembly.FullName},
+                    {"WhoAreYou", requestData => "iOS"},
+                    {"GetPixateCssFiles", requestData => JsonEncode(_pixateCssPaths.ToArray())},
+                    {"ExecuteAssembly", requestData =>
                         {
                             var response = "{}";
                             var remoteCommandDoneEvent = new AutoResetEvent(false);
-                            _appDelegate.InvokeOnMainThread(() => ExecuteAssemblyAndCreateResponse(data, remoteCommandDoneEvent, ref response));
+                            _appDelegate.InvokeOnMainThread(() => ExecuteAssemblyAndCreateResponse(requestData, remoteCommandDoneEvent, ref response));
                             remoteCommandDoneEvent.WaitOne();
                             return response;
                         }
                     },
-                    {"UpdatePixateCSS", data =>
+                    {"UpdatePixateCSS", requestData =>
                         {
                             var response = "{}";
                             var remoteCommandDoneEvent = new AutoResetEvent(false);
-                            var filePathDataLength = (data[1] << 8) + data[0];
+                            var filePathDataLength = requestData[1] + (requestData[0] << 8);
                             var filePathData = new byte[filePathDataLength];
-                            Array.Copy(data, 1, filePathData, 0, filePathDataLength);
+                            Array.Copy(requestData, 2, filePathData, 0, filePathDataLength);
                             var filePath = Encoding.UTF8.GetString(filePathData);
-                            var cssFileDataLength = data.Length - (2 + filePathDataLength);
+                            var cssFileDataLength = requestData.Length - (2 + filePathDataLength);
                             var cssFileData = new byte[cssFileDataLength];
-                            Array.Copy(data, 2 + filePathDataLength, cssFileData, 0, cssFileDataLength);
+                            Array.Copy(requestData, 2 + filePathDataLength, cssFileData, 0, cssFileDataLength);
                             _appDelegate.InvokeOnMainThread(() => UpdatePixateCssFile(filePath, cssFileData, remoteCommandDoneEvent, ref response));
+                            remoteCommandDoneEvent.WaitOne();
+                            return response;
+                        }
+                    },
+                    {"GetFileContents", requestData =>
+                        {
+                            var response = "";
+                            var filePath = Encoding.UTF8.GetString(requestData);
+                            var remoteCommandDoneEvent = new AutoResetEvent(false);
+                            _appDelegate.InvokeOnMainThread(() => GetFileContents(filePath, remoteCommandDoneEvent, ref response));
                             remoteCommandDoneEvent.WaitOne();
                             return response;
                         }
@@ -97,6 +107,23 @@ namespace ProtoPadServerLibrary_iOS
                 stream.Close();
             }
             return resultJSON;
+        }
+
+        private static void GetFileContents(string filePath, EventWaitHandle remoteCommandDoneEvent, ref string response)
+        {
+            try
+            {
+                var responseData = File.ReadAllBytes(filePath);
+                response = Encoding.UTF8.GetString(responseData);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+            finally
+            {
+                remoteCommandDoneEvent.Set();
+            }
         }
 
         private static void UpdatePixateCssFile(string cssFilePath, byte[] requestData, EventWaitHandle remoteCommandDoneEvent, ref string response)
