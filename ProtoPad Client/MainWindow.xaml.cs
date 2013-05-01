@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,6 +20,7 @@ using ActiproSoftware.Text.Languages.DotNet;
 using ActiproSoftware.Text.Languages.DotNet.Ast.Implementation;
 using ActiproSoftware.Text.Languages.DotNet.Reflection;
 using ActiproSoftware.Text.Parsing;
+using ActiproSoftware.Text.Parsing.Implementation;
 using ActiproSoftware.Windows.Controls.SyntaxEditor.IntelliPrompt.Implementation;
 using Microsoft.CSharp;
 using ServiceDiscovery;
@@ -92,14 +94,18 @@ namespace ProtoPad_Client
                 DeviceName = "Local"
             };
             _currentCodeType = _defaultCodeTypeItems[1];
+        }
 
+        #region Event handlers
+
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
             UpdateSendButtons();
             InitializeEditor();
             ConnectToApp(_currentDevice);
             InitializeResultWindow();
         }
-
-        #region Event handlers
 
         private void SendCodeButton_Click(object sender, RoutedEventArgs e)
         {
@@ -151,7 +157,7 @@ namespace ProtoPad_Client
             }
             var dlg = new Microsoft.Win32.OpenFileDialog { DefaultExt = ".dll" };
 
-            var frameworkReferenceAssembliesDirectory = EditorHelpers.GetFrameworkReferenceAssembliesDirectory();
+            var frameworkReferenceAssembliesDirectory = Path.GetDirectoryName(_referencedAssemblies.First());
             switch (_currentDevice.DeviceType)
             {
                 case DeviceTypes.Android:
@@ -189,7 +195,7 @@ namespace ProtoPad_Client
 
         private void ClearSimulatorWindowButton_Click(object sender, RoutedEventArgs e)
         {
-            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Statements, _currentDevice.DeviceType);
+            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Statements, _currentDevice.DeviceType, null);
             var clearCode = wrapText.Replace("__STATEMENTSHERE__", _currentDevice.DeviceType == DeviceTypes.iOS ? EditorHelpers.ClearWindowStatements_iOS : EditorHelpers.ClearWindowStatements_Android);
             SendCode(_currentDevice.DeviceAddress, false, clearCode);            
         }
@@ -384,7 +390,7 @@ namespace ProtoPad_Client
                 return; // todo: locate and provide Android Emulator file path if applicable
             }
 
-            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Expression, _currentDevice.DeviceType);
+            var wrapText = EditorHelpers.GetWrapText(CodeTypes.Expression, _currentDevice.DeviceType, null);
             var getFolderCode = wrapText.Replace("__STATEMENTSHERE__", "Environment.GetFolderPath(Environment.SpecialFolder.Personal)");
             var result = SendCode(_currentDevice.DeviceAddress, false, getFolderCode);
             if (result == null || result.Results == null) return;
@@ -404,12 +410,15 @@ namespace ProtoPad_Client
                 _currentWrapText = "";
                 CodeEditor.Document.SetText(fileContentsDataString);
                 CodeEditor.Document.SetHeaderAndFooterText("", "");
+                CodeEditor.Document.FileName = Path.GetFileName(_currentCodeType.EditFilePath);
             }
             else
             {
-                _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType.CodeType, _currentDevice.DeviceType);                
+                var isPixate = _currentDevice.PixateCssPaths != null;
+                _currentWrapText = EditorHelpers.GetWrapText(_currentCodeType.CodeType, _currentDevice.DeviceType, isPixate ? new List<string>{"using PixateLib;"} : null);
                 CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType.CodeType, _currentDevice.DeviceType));
                 CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
+                CodeEditor.Document.FileName = "ProtoPad.cs";
             }
             
         }
@@ -491,7 +500,13 @@ namespace ProtoPad_Client
                     _referencedAssemblies = EditorHelpers.GetXamarinAndroidBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
                     break;
                 case DeviceTypes.iOS:
+                    var includePixate = _currentDevice.PixateCssPaths != null;
                     _referencedAssemblies = EditorHelpers.GetXamariniOSBaseAssemblies(_currentDevice.MainXamarinAssemblyName, out _msCorLib);
+                    if (includePixate)
+                    {
+                        var pixateDllPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Binaries", "Pixate.dll");
+                        if (File.Exists(pixateDllPath)) _referencedAssemblies.Add(pixateDllPath);
+                    }
                     break;
                 default:
                 case DeviceTypes.Local:
@@ -504,22 +519,26 @@ namespace ProtoPad_Client
         private readonly Dictionary<string, IProjectAssemblyReference> cachedReferences = new Dictionary<string, IProjectAssemblyReference>();
 
         private void LoadEditorReferences()
-        {
-            _projectAssembly.AssemblyReferences.Clear();            
-            _projectAssembly.AssemblyReferences.AddMsCorLib(); 
-            foreach (var assembly in _referencedAssemblies)
-            {
-                if (cachedReferences.ContainsKey(assembly))
+        {            
+            _projectAssembly.AssemblyReferences.Clear();     
+            LogToResultsWindow("Loading autocompletion and assembly data");
+            new Task(() =>
                 {
-                    _projectAssembly.AssemblyReferences.Add(cachedReferences[assembly]);
-                }
-                else
-                {
-                    cachedReferences[assembly] = _currentDevice.DeviceType == DeviceTypes.Local ? 
-                        _projectAssembly.AssemblyReferences.Add(assembly) : 
-                        _projectAssembly.AssemblyReferences.AddFrom(assembly);
-                }
-            }
+                    _projectAssembly.AssemblyReferences.AddMsCorLib();
+                    foreach (var assembly in _referencedAssemblies)
+                    {
+                        if (cachedReferences.ContainsKey(assembly))
+                        {
+                            _projectAssembly.AssemblyReferences.Add(cachedReferences[assembly]);
+                        }
+                        else
+                        {
+                            cachedReferences[assembly] = _projectAssembly.AssemblyReferences.AddFrom(assembly);
+                        }
+                    }
+                    Dispatcher.Invoke((Action)(() => LogToResultsWindow("FINISHED loading autocompletion and assembly data")));
+
+                }).Start();
         }
     }
 }

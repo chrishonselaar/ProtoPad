@@ -6,6 +6,9 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Xml;
+using Microsoft.Build.Construction;
+using Microsoft.Build.Execution;
 using ServiceDiscovery;
 
 namespace ProtoPad_Client
@@ -60,46 +63,71 @@ namespace ProtoPad_Client
             return dumpObject;
         }
 
-        public static string GetFrameworkReferenceAssembliesDirectory()
+        private const string DotNetTargetVersion = "4.0";
+        private const string XamariniOSTargetsFile = @"$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.MonoTouch.CSharp.targets";
+        private const string XamarinAndroidTargetsFile = @"$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.Android.CSharp.targets";
+        private const string RegularCSharpTargetsFile = @"$(MSBuildToolsPath)\Microsoft.CSharp.targets";
+
+        private static readonly string[] AndroidAssemblyNames = new[] { "mscorlib", "system", "system.core", "mono.android" };
+        private static readonly string[] IOSAssemblyNames = new[] { "system", "system.core", "monotouch" };
+        private static readonly string[] RegularAssemblyNames = new[] { "system", "system.core", "system.drawing" };
+
+        private const string AssemblyResolverDummyProjectFileTemplate = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""{0}"" DefaultTargets=""Build"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+  <ItemGroup>
+    {1}    
+  </ItemGroup>
+  <Import Project=""{2}"" />
+</Project>";
+
+        /// <summary>
+        /// Reliably resolve basic Xamarin/Microsoft assembly paths by using MSBuild and a mock project file
+        /// </summary>
+        /// <param name="toolsVersion">4.0 currently</param>
+        /// <param name="assemblyNames">list of basic assembly names (eg. "System.Core")</param>
+        /// <param name="targetsPath">.targets file path</param>
+        /// <returns></returns>
+        private static List<string> GetResolvedAssemblies(string toolsVersion, IEnumerable<string> assemblyNames, string targetsPath)
         {
-            var programFilesx86Dir = Environment.GetEnvironmentVariable("programfiles(x86)") ?? @"C:\Program Files (x86)\";
-            return Path.Combine(programFilesx86Dir, @"Reference Assemblies\Microsoft\Framework");
+            var references = String.Join("\r\n", assemblyNames.Select(a => String.Format("<Reference Include=\"{0}\" />", a)));
+            var projectFileContents = String.Format(AssemblyResolverDummyProjectFileTemplate, toolsVersion, references, targetsPath);
+            var xmlReader = XmlReader.Create(new StringReader(projectFileContents));
+            var projectRootElement = ProjectRootElement.Create(xmlReader);
+            var projectInstance = new ProjectInstance(projectRootElement);
+            projectInstance.SetProperty("BuildProjectReferences", "False");
+            var buildRequestData = new BuildRequestData(projectInstance, new[] { "ResolveProjectReferences", "ResolveReferences" });
+            BuildManager.DefaultBuildManager.Build(null, buildRequestData);
+            return projectInstance.GetItems("ReferencePath").Select(referencePath => referencePath.EvaluatedInclude).ToList();
+        }
+
+        private static List<String> OrderAsInSourceList(IEnumerable<string> unorderedPathList, string[] sourcebaseFileNamesOrdered)
+        {
+            return unorderedPathList.OrderBy(item => Array.IndexOf(sourcebaseFileNamesOrdered, Path.GetFileNameWithoutExtension(item).ToLower())).ToList();
         }
 
         public static List<String> GetXamarinAndroidBaseAssemblies(string mainMonodroidAssemblyName, out string msCorLibPath)
         {
-            msCorLibPath = null;
-            if (String.IsNullOrWhiteSpace(mainMonodroidAssemblyName)) return null;
-            //var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "Mono.Android.dll", SearchOption.AllDirectories);
-            //var mainMonodroidAssemblyPath = fileNames.First(f => Assembly.LoadFrom(f). .FullName == mainMonodroidAssemblyName);
-            const string mainMonodroidAssemblyPath = @"c:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\MonoAndroid\v4.0\Mono.Android.dll";
-            var monoDroidAssembliesParentPath = Directory.GetParent(mainMonodroidAssemblyPath).Parent.FullName;
-            var androidSystemDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
-            msCorLibPath = Directory.GetFiles(monoDroidAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
-            var androidSystemCoreDllPath = Directory.GetFiles(monoDroidAssembliesParentPath, "System.Core.dll", SearchOption.AllDirectories).First();
-            return new List<string> { androidSystemDllPath, androidSystemCoreDllPath, mainMonodroidAssemblyPath };
+            
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, AndroidAssemblyNames, XamarinAndroidTargetsFile);
+            msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
+            var paths = assemblyPaths.Except(new[] {msCorLibPath}).ToList();
+            return OrderAsInSourceList(paths, AndroidAssemblyNames);
         }
 
         public static List<String> GetXamariniOSBaseAssemblies(string mainMonotouchAssemblyName, out string msCorLibPath)
         {
-            msCorLibPath = null;
-            if (String.IsNullOrWhiteSpace(mainMonotouchAssemblyName)) return null;
-            var fileNames = Directory.GetFiles(GetFrameworkReferenceAssembliesDirectory(), "monotouch.dll", SearchOption.AllDirectories);
-            var mainMonotouchAssemblyPath = fileNames.First(f => Assembly.LoadFrom(f).FullName == mainMonotouchAssemblyName);
-            var monoTouchAssembliesParentPath = Directory.GetParent(mainMonotouchAssemblyPath).Parent.FullName;
-            var monoTouchSystemDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.dll", SearchOption.AllDirectories).First();
-            var monoTouchSystemCoreDllPath = Directory.GetFiles(monoTouchAssembliesParentPath, "System.Core.dll", SearchOption.AllDirectories).First();
-            msCorLibPath = Directory.GetFiles(monoTouchAssembliesParentPath, "mscorlib.dll", SearchOption.AllDirectories).First();
-            //mscorlib-runtime.dll
-            return new List<string> { monoTouchSystemDllPath, monoTouchSystemCoreDllPath, mainMonotouchAssemblyPath };
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, IOSAssemblyNames, XamariniOSTargetsFile);
+            msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
+            var paths = assemblyPaths.Except(new[] { msCorLibPath }).ToList();
+            return OrderAsInSourceList(paths, IOSAssemblyNames);
         }
 
         public static List<String> GetRegularDotNetBaseAssemblyNames()
         {
-            const string systemCore = "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089";
-            const string system = "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089";
-            const string systemDrawing = "System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a";
-            return new List<string> { systemCore, system, systemDrawing };
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, RegularAssemblyNames, RegularCSharpTargetsFile);
+            var msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
+            var paths = assemblyPaths.Except(new[] { msCorLibPath }).ToList();
+            return OrderAsInSourceList(paths, RegularAssemblyNames);
         }
 
         public static string GetDeviceSpecificMainParams(MainWindow.DeviceTypes deviceType)
@@ -118,31 +146,20 @@ namespace ProtoPad_Client
 
         public const string CodeTemplateStatementsPlaceHolder = "__STATEMENTSHERE__";
 
-        public static string GetWrapText(MainWindow.CodeTypes codeType, MainWindow.DeviceTypes deviceType)
+        public static string GetWrapText(MainWindow.CodeTypes codeType, MainWindow.DeviceTypes deviceType, List<string> extraUsingStatements)
         {
-            string wrapText = "";
-            switch (deviceType)
-            {
-                case MainWindow.DeviceTypes.Android:
-                    wrapText = WrapText_Android_Base;
-                    break;
-                case MainWindow.DeviceTypes.iOS:
-                    wrapText = WrapText_IOS_Base;
-                    break;
-                case MainWindow.DeviceTypes.Local:
-                    wrapText = WrapText_RegularDotNet_Base;
-                    break;
-            }
+            var wrapText = WrapText_Base;
+
             switch (codeType)
             {
                 case MainWindow.CodeTypes.Expression:
-                    wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main("+GetDeviceSpecificMainParams(deviceType)+@")
+                    wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main(" + GetDeviceSpecificMainParams(deviceType) + @")
 {
     __STATEMENTSHERE__.Dump();
 }");
                     break;
                 case MainWindow.CodeTypes.Statements:
-                    wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main("+GetDeviceSpecificMainParams(deviceType)+@")
+                    wrapText = wrapText.Replace("__STATEMENTSHERE__", @"void Main(" + GetDeviceSpecificMainParams(deviceType) + @")
 {
     __STATEMENTSHERE__
 }");
@@ -150,6 +167,21 @@ namespace ProtoPad_Client
                 case MainWindow.CodeTypes.Program:
                     break;
             }
+
+            var usingStatements = "";
+            switch (deviceType)
+            {
+                case MainWindow.DeviceTypes.Android:
+                    usingStatements = DefaultUsingStatements_Android;
+                    break;
+                case MainWindow.DeviceTypes.iOS:
+                    usingStatements = DefaultUsingStatements_iOS;
+                    break;
+                case MainWindow.DeviceTypes.Local:
+                    usingStatements = DefaultUsingStatements_RegularDotNet;
+                    break;
+            }
+            wrapText = wrapText.Replace("__USINGS__", usingStatements + (extraUsingStatements == null ? "" : String.Join("\r\n", extraUsingStatements)));
             return wrapText + WrapTextDumpHelpers;
         }
 
@@ -187,6 +219,58 @@ namespace ProtoPad_Client
             return "";
         }
 
+        public const string DefaultUsingStatements_iOS = @"
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
+
+using MonoTouch.UIKit;
+using MonoTouch.Foundation;
+using MonoTouch.CoreImage;
+using MonoTouch.CoreGraphics;
+using MonoTouch.AVFoundation;
+using MonoTouch;";
+
+        public const string DefaultUsingStatements_Android = @"
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Drawing;
+using System.Threading;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.RegularExpressions;
+
+using Java.Net;
+using Android.App;
+using Android.Content;
+using Android.Runtime;
+using Android.Views;
+using Android.Widget;
+using Android.Graphics;
+using Android.OS;";
+
+        public const string DefaultUsingStatements_RegularDotNet = @"
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Drawing;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.IO;";
+
         public const string ClearWindowStatements_iOS = "window.Subviews.ToList().ForEach(v=>v.RemoveFromSuperview());";
         public const string ClearWindowStatements_Android = @"var viewGroup = window.DecorView as ViewGroup;
 var layout = viewGroup.GetChildAt(0) as LinearLayout;
@@ -197,79 +281,7 @@ for (int i = 0; i < childCount; i++)
 	frame.RemoveViewAt(0);
 }";
 
-        public const string WrapText_IOS_Base = @"using MonoTouch.UIKit;
-using System;
-using MonoTouch.Foundation;
-using MonoTouch.CoreImage;
-using MonoTouch.CoreGraphics;
-using MonoTouch.AVFoundation;
-using MonoTouch;
-using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
-	
-public class __MTDynamicCode
-{
-    public static int ___lastExecutedStatementOffset = 0;
-    public static void ____TrackStatementOffset(int offset)
-    {
-        ___lastExecutedStatementOffset = offset;
-    }
-    public static int ___maxEnumerableItemCount = 1000;
-    public static List<DumpHelpers.DumpObj> ___dumps = new List<DumpHelpers.DumpObj>();
-
-    __STATEMENTSHERE__    
-}";
-
-        public const string WrapText_Android_Base = @"using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Drawing;
-using System.Threading;
-using System.IO;
-using Android.App;
-using Android.Content;
-using Java.Net;
-using Android.Runtime;
-using Android.Views;
-using Android.Widget;
-using Android.Graphics;
-using Android.OS;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.RegularExpressions;
-	
-public class __MTDynamicCode
-{
-    public static int ___lastExecutedStatementOffset = 0;
-    public static void ____TrackStatementOffset(int offset)
-    {
-        ___lastExecutedStatementOffset = offset;
-    }
-    public static int ___maxEnumerableItemCount = 1000;
-    public static List<DumpHelpers.DumpObj> ___dumps = new List<DumpHelpers.DumpObj>();
-
-    __STATEMENTSHERE__    
-}";
-
-
-        public const string WrapText_RegularDotNet_Base = @"using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Drawing;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.IO;
+        public const string WrapText_Base = @"__USINGS__
 	
 public class __MTDynamicCode
 {
