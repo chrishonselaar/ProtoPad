@@ -124,17 +124,17 @@ namespace ProtoPad_Client
             var successResults = results.Where(r => r.Value.HasValue && r.Value.Value).Select(r => r.Key).ToList();
             if (successResults.Any())
             {
-                MessageBox.Show(String.Format("Emulator found at port {0}, and configured successfully! Hit 'Find servers' to auto-discover your running app on this/these emulator(s).", String.Join(", ", successResults)));
+                MessageBox.Show(String.Format("Emulator found at port {0}, and configured successfully! Hit 'Refresh' to auto-discover your running app on this/these emulator(s).", String.Join(", ", successResults)));
                 return;
             }
             var halfResults = results.Where(r => r.Value.HasValue && !r.Value.Value).Select(r => r.Key).ToList();
             if (halfResults.Any())
             {
-                MessageBox.Show(String.Format("Emulator found at port {0}, but it may have already been configured, or was not able to be configured successfully. Please retry auto-discovery.", String.Join(", ", halfResults)));
+                MessageBox.Show(String.Format("Emulator found at port {0}, but it may have already been configured, or was not able to be configured successfully. Please try refreshing again.", String.Join(", ", halfResults)));
                 return;
             }
             var emptyResults = results.Where(r => !r.Value.HasValue).Select(r => r.Key);
-            MessageBox.Show(String.Format("Emulator found at port {0}, but it could not be telnet-connected to. Please retry auto-discovery.", String.Join(", ", emptyResults)));
+            MessageBox.Show(String.Format("Emulator found at port {0}, but it could not be telnet-connected to. Please try refreshing again.", String.Join(", ", emptyResults)));
         }
 
         /// <summary>

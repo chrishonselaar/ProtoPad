@@ -97,11 +97,18 @@ namespace ServiceDiscovery
             var dataStream = request.GetRequestStream();
             dataStream.Write(byteArray, 0, byteArray.Length);
             dataStream.Close();
-            var response = request.GetResponse();
-            var stream = response.GetResponseStream();
-            if (stream == null) return "";
-            var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            try
+            {
+                var response = request.GetResponse();
+                var stream = response.GetResponseStream();
+                if (stream == null) return "";
+                var reader = new StreamReader(stream);
+                return reader.ReadToEnd();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public void Dispose()

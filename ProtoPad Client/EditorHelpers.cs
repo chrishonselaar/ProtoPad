@@ -65,7 +65,7 @@ namespace ProtoPad_Client
 
         private const string DotNetTargetVersion = "4.0";
         private const string XamariniOSTargetsFile = @"$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.MonoTouch.CSharp.targets";
-        private const string XamarinAndroidTargetsFile = @"$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.Android.CSharp.targets";
+        private const string XamarinAndroidTargetsFile = @"$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets";
         private const string RegularCSharpTargetsFile = @"$(MSBuildToolsPath)\Microsoft.CSharp.targets";
 
         private static readonly string[] AndroidAssemblyNames = new[] { "mscorlib", "system", "system.core", "mono.android" };
@@ -74,10 +74,11 @@ namespace ProtoPad_Client
 
         private const string AssemblyResolverDummyProjectFileTemplate = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <Project ToolsVersion=""{0}"" DefaultTargets=""Build"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+  {1}
   <ItemGroup>
-    {1}    
+    {2}    
   </ItemGroup>
-  <Import Project=""{2}"" />
+  <Import Project=""{3}"" />
 </Project>";
 
         /// <summary>
@@ -87,10 +88,10 @@ namespace ProtoPad_Client
         /// <param name="assemblyNames">list of basic assembly names (eg. "System.Core")</param>
         /// <param name="targetsPath">.targets file path</param>
         /// <returns></returns>
-        private static List<string> GetResolvedAssemblies(string toolsVersion, IEnumerable<string> assemblyNames, string targetsPath)
+        private static List<string> GetResolvedAssemblies(string toolsVersion, IEnumerable<string> assemblyNames, string propertyGroup, string targetsPath)
         {
             var references = String.Join("\r\n", assemblyNames.Select(a => String.Format("<Reference Include=\"{0}\" />", a)));
-            var projectFileContents = String.Format(AssemblyResolverDummyProjectFileTemplate, toolsVersion, references, targetsPath);
+            var projectFileContents = String.Format(AssemblyResolverDummyProjectFileTemplate, toolsVersion, propertyGroup, references, targetsPath);
             var xmlReader = XmlReader.Create(new StringReader(projectFileContents));
             var projectRootElement = ProjectRootElement.Create(xmlReader);
             var projectInstance = new ProjectInstance(projectRootElement);
@@ -107,8 +108,10 @@ namespace ProtoPad_Client
 
         public static List<String> GetXamarinAndroidBaseAssemblies(string mainMonodroidAssemblyName, out string msCorLibPath)
         {
-            
-            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, AndroidAssemblyNames, XamarinAndroidTargetsFile);
+
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, AndroidAssemblyNames, @"<PropertyGroup>
+    <TargetFrameworkVersion>v4.0.3</TargetFrameworkVersion>
+  </PropertyGroup>", XamarinAndroidTargetsFile);
             msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
             var paths = assemblyPaths.Except(new[] {msCorLibPath}).ToList();
             return OrderAsInSourceList(paths, AndroidAssemblyNames);
@@ -116,7 +119,7 @@ namespace ProtoPad_Client
 
         public static List<String> GetXamariniOSBaseAssemblies(string mainMonotouchAssemblyName, out string msCorLibPath)
         {
-            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, IOSAssemblyNames, XamariniOSTargetsFile);
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, IOSAssemblyNames, "", XamariniOSTargetsFile);
             msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
             var paths = assemblyPaths.Except(new[] { msCorLibPath }).ToList();
             return OrderAsInSourceList(paths, IOSAssemblyNames);
@@ -124,7 +127,7 @@ namespace ProtoPad_Client
 
         public static List<String> GetRegularDotNetBaseAssemblyNames()
         {
-            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, RegularAssemblyNames, RegularCSharpTargetsFile);
+            var assemblyPaths = GetResolvedAssemblies(DotNetTargetVersion, RegularAssemblyNames, "", RegularCSharpTargetsFile);
             var msCorLibPath = assemblyPaths.First(a => Path.GetFileName(a).Equals("mscorlib.dll", StringComparison.InvariantCultureIgnoreCase));
             var paths = assemblyPaths.Except(new[] { msCorLibPath }).ToList();
             return OrderAsInSourceList(paths, RegularAssemblyNames);

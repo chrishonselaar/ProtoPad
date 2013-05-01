@@ -419,8 +419,7 @@ namespace ProtoPad_Client
                 CodeEditor.Document.SetText(EditorHelpers.GetDefaultCode(_currentCodeType.CodeType, _currentDevice.DeviceType));
                 CodeEditor.Document.SetHeaderAndFooterText(WrapHeader, WrapFooter);
                 CodeEditor.Document.FileName = "ProtoPad.cs";
-            }
-            
+            }            
         }
 
         private void LogToResultsWindow(string message, params object[] stringFormatArguments)
