@@ -6,6 +6,7 @@ using System.Text;
 
 namespace ServiceDiscovery
 {
+    // Credits for most of this code go to Steven Robbins: http://www.grumpydev.com/
     public class UdpDiscoveryServer: IDisposable
     {
         public const int UdpServerPort = 5356; // TODO: arbitrary value for now - update to use automatic free port finder?

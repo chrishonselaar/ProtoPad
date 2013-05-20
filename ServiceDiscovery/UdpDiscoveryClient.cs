@@ -7,6 +7,7 @@ using System.Timers;
 
 namespace ServiceDiscovery
 {
+    // Credits for most of this code go to Steven Robbins: http://www.grumpydev.com/
     public class UdpDiscoveryClient
     {
         public const int UdpClientPort = 5354; // TODO: arbitrary value for now - update to use automatic free port finder?        
@@ -73,7 +74,7 @@ namespace ServiceDiscovery
             enableTimer.Elapsed += (e, o) =>
                 {
                     _readyHandler(true);
-                    udpClient.Close();
+                    udpClient.Close();                    
                 };
             enableTimer.AutoReset = false;
             enableTimer.Enabled = true;
