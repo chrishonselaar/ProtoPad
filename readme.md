@@ -1,6 +1,14 @@
-# ProtoPad v0.01
+# ProtoPad v0.02
 
-A simple tool for [LIVE interactive development](https://github.com/chrishonselaar/ProtoPad#features) on iOS and Android.
+A simple tool for [LIVE interactive development](https://github.com/chrishonselaar/ProtoPad#features) on iOS and Android. No waiting for compiles, builds, deployments - it's magic!
+
+## So what do I use it for?
+* Experiment with all the real mobile APIs with near-instant feedback
+* Tweak your app GUI by manipulating controls while it is running
+* **New: try out the [Pixate](http://www.pixate.com) app styling framework in realtime!!**
+* Quickly prototype fully working apps without firing up Visual Studio or Xamarin Studio
+* Rapidly develop and test code concepts, and simply paste them into your project when you are happy
+* Find out what is happening in your app during runtime, without breakpoints, debuggers
 
 
 ![ProtoPad](http://clearcode.nl/temp/Protopad-Screenshot1.png "ProtoPad")
@@ -55,6 +63,11 @@ A Mac OS X version of ProtoPad Client is in the works as well.
 Not all Android devices support UDP Multicast (but most do). If your device does not support it, auto-discovery in ProtoPad Client will not find your app. No worries, the ProtoPadServer object will give you an IP Address and prot that you can fill in in ProtoPad Client and connect manually.
 The Android emulator needs port forwarding set up in order to be able to connect to it on your local machine. This is done by logging in on the emulator through a Telnet client, and issuing port forwarding commands. ProtoPad client can take care of this for you automatically. Just use the 'New Android Emu' button. After that, you can use the Find button to automatically discover and connect to your app on the emulator.
 
+## Pixate integration
+[Pixate](http://www.pixate.com/) is a really nifty framework that allows you to use fancy CSS styling on native iOS controls. Check the Pixate Sample project - when you start that and connect to it from the new ProtoPad client, it will allow you to edit the Pixate CSS file (this is added as an additional selection under the C# Expression/Statements/Program mode dropdown), and update it directly! The updates will immediately reflect in your app. 
+Of course you can use ProtoPad as usual to add and manipulate controls on the fly - and these controls will also obey to the Pixate CSS! When connected to a Pixate-enabled app, ProtoPad adds `.SetStyleId()`, `.SetStyleClass()` and `.SetStyle()` CSS extension methods to your native controls, that you can use to target these controls from CSS.
+Check [here](http://pixate.github.io/MonoTouch-Pixate/) for more details on how this works. Also check [this video](http://youtu.be/2aHF9ED7XKI) and [this one](http://youtu.be/AyYZ4WO9Oos).
+
 ## Requirements
 * [Xamarin Android/iOS](http://xamarin.com/download) - the Starter/Free edition should work fine!
 * A Windows machine (Windows Vista and up) - Mac OS X version is under development!
@@ -86,11 +99,17 @@ Also make sure that you enable all applicable permissions (internet/wifi/Multica
 * Ability to send any (device framework compatible) assembly to the device, and have it be accessible from code you send immediately
 * Auto-discovers running “Protopad-enabled” apps on devices/simulators on your local network (through network multicast functionality), and allows you to select and connect to them. Automatically sets up port forwarding on Android Emulators as well.
 * A simple, light-weight assembly that you can use to add Protopad functionality to any of your existing .Net (iOS/Android/etc) apps, so that you can easily deep-inspect that app without breakpoints/pausing etc, and even modify it on the fly to rapidly prototype changes.
+* Pixate integration enables realtime restyling of your ProtoPad-enabled app!!
 * Friendly statusbar indicator of the local filesystem location of the connected app (when running on a simulator), so that you can find and access your live running app’s files easily (see screenshot 1, having the OS/X simulator files location mapped to a Windows share makes it really easy to prototype functionality that interacts with the iOS filesystem!)
 * Easily clear your app’s main view with one click (so you can do quick full interface make-overs)
 
-## Planned features
-* Improve the UI, add keyboard shortcuts, better documentation etc.
+## Planned features (anyone is **more** than welcome to help out with this!)
+* Improve the UI and error handling
+* Add more keyboard shortcuts
+* Add saving/opening functionality
+* Preserve code when switching between code types (Expression/Statements/Program)
+* Add better documentation
+* Create video tutorial
 * Add Using Statements configuration
 * ProtoPad editor/client app for Mac OS/X (Windows only for now, sorry, working on it!)
 * Windows RT and Windows Phone compatibility
